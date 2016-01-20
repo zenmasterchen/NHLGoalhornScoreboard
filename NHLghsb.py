@@ -1,14 +1,18 @@
 ## TO DO
 ## -----
-## - Title text?
-##
-## - URL timing
+## \ URL timing
+##   N Improve performance: ~4 seconds for URLopen
+##   - Splash screen: needs a thread
 ## - Horn playback threading
+## - Flash red for goal
 ##
 ## - OT simplified
 ## - SO simplified
-## 
+##
+## W Title text?
+##
 ## W Get all team horns
+##
 
 
 import urllib       #for reading in webpage content
@@ -17,6 +21,8 @@ import time         #for delays
 import Tkinter      #for graphics
 import os           #for file management
 from datetime import datetime     #for debugging
+
+import urllib2
 
 
 ################################################################################
@@ -27,14 +33,14 @@ from datetime import datetime     #for debugging
 ##
 
 # Miscellaneous 
-refreshRate = 10                    #how often to update **
+refreshRate = 10                    #how often to update, in seconds **
 firstRun = 1;                       #first run flag
 
 # Display dimensions and settings
 sp = 20                             #spacer
 gh = 50                             #game height, inner
 gw = 310                            #game width, inner
-columnMax = 12                      #maximum number of games in column 1 ** #6
+columnMax = 12                      #maximum number of games in a column **
 
 # Team IDs for logos (DO NOT ALTER)
 ducks = 0; coyotes = 1; bruins = 2; sabres = 3; flames = 4;
@@ -79,12 +85,12 @@ def checkScores():
     global awayTeam; global homeTeam; global awayID; global homeID;
     global awayScore; global homeScore; global timePeriod; global gameStatus;
     
-    
     # Read in the raw NHL scores information from the ESPN feed
     URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
-    link = urllib.urlopen(URL)
-    fullText = link.readline()
-
+    #t0 = time.time()
+    fullText = urllib.urlopen(URL).read()
+    #t1 = time.time(); print 'URL time:',t1-t0
+    
     # Read in a test file
     #doc = open("C:\\Python27\\Scripts\\Test Scores\\scores2m.html")
     #doc = open("C:\\NHL Scoreboard\\Development\\Test Scores\\scores5.htm")
@@ -203,7 +209,6 @@ def checkScores():
             timePeriod[whichGame] = game[1:len(game)-1]       
                     
             gameStatus[whichGame] = 0
-
             
     # Apply appropriate changes to the scoreboard display        
     if firstRun == 1:
