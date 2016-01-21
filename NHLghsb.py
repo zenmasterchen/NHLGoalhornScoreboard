@@ -1,20 +1,15 @@
 ## TO DO
 ## -----
-## N URL timing
-##   N Improve performance: ~4 seconds for URLopen
-##   N Splash screen: needs a thread (max 4 seconds, min 2 seconds?)
-##       Can't splash screen serially, need to root.mainloop() first
-##       Tkinter can't display until root.mainloop() is run
-##       Currently, checkScores is run before root.mainloop()
-##       Can be done with a zeroth run flag which just displays and returns
-##       No delay with Windows 10, so sip
-## ! Horn playback threading: consider score change order?
-## ! Flash red for goal: what flashes red?
+## X Horn playback threading (fixed with winsound.SND_ASYNC)
+## ! Flash red for goal: what flashes red? logo outer glow, length 9+ seconds
+##
+## N check window dimensions every update?
+## X Avs goal horn won't play? trackedScores not getting updated b/c teamID change
+## ! Update teamIDs with teamIDs image=logos[homeID[gameNum]]
+## ! Multiple horns: take turns (in winsound, last one takes precedence)
 ##
 ## - OT simplified
 ## - SO simplified
-##
-## N Title text? Just a splash screen
 ##
 ## W Get all team horns
 ##
@@ -37,14 +32,7 @@ from datetime import datetime     #for debugging
 
 # Miscellaneous 
 refreshRate = 10                    #how often to update, in seconds **
-zerothRun = True                    #zeroth run flag
 firstRun = True                     #first run flag
-
-# Display dimensions and settings
-sp = 20                             #spacer
-gh = 50                             #game height, inner
-gw = 310                            #game width, inner
-columnMax = 12                      #maximum number of games in a column **
 
 # Team IDs for logos (DO NOT ALTER)
 ducks = 0; coyotes = 1; bruins = 2; sabres = 3; flames = 4;
@@ -61,8 +49,18 @@ numGames = 0
 
 # Tracking information
 trackedTeams = [avalanche, penguins]    #teams to track **
-trackedScores = [0]*len(trackedTeams)  #scores to track
+trackedScores = [0]*len(trackedTeams)   #scores to track
 hornToggles = [0]*len(trackedTeams)     #goal horn flags
+
+# Display dimensions and settings
+pageWidth = 0                       #window width
+pageHeight = 0                      #window height
+sp = 20                             #spacer
+gh = 50                             #game height, inner
+gw = 310                            #game width, inner
+lw = 100                            #logo width
+tw = 70                             #text width
+columnMax = maxGames                #maximum number of games in a column **
 
 # File information
 try:
@@ -85,26 +83,21 @@ except NameError:  # We are the main py2exe script, not a module
 
 def checkScores():
 
-    global refreshRate; global zerothRun; global firstRun; global numGames
+    global refreshRate; global firstRun; global numGames
     global awayTeam; global homeTeam; global awayID; global homeID;
     global awayScore; global homeScore; global timePeriod; global gameStatus;
 
-    if zerothRun:
-        splashScreen()
-        zerothRun = False;
-        root.after(3*1000, checkScores)
-        return
     
     # Read in the raw NHL scores information from the ESPN feed
-    URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
-    t0 = time.time()
-    fullText = urllib.urlopen(URL).read()
-    t1 = time.time(); print 'URL Open Time:',t1-t0
+    #URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
+    #t0 = time.time()
+    #fullText = urllib.urlopen(URL).read()
+    #t1 = time.time(); print 'URL Open Time:',t1-t0
     
     # Read in a test file
-    #doc = open("C:\\Python27\\Scripts\\Test Scores\\scores2m.html")
+    doc = open("C:\\Python27\\Scripts\\Test Scores\\scores2m.html")
     #doc = open("C:\\NHL Scoreboard\\Development\\Test Scores\\scores5.htm")
-    #fullText = doc.readline()
+    fullText = doc.readline()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')
@@ -240,7 +233,7 @@ def checkScores():
 
                 # Match against the away team
                 if teamID == awayID[whichGame]:
-
+                    print 'tracking away'
                     # Check for a valid goal
                     if awayScore[whichGame] > trackedScores[whichTeam]:
                         
@@ -252,7 +245,7 @@ def checkScores():
 
                 # Match against the home team
                 if teamID == homeID[whichGame]:
-                    
+                    print 'tracking home'
                     # Check for a valid goal
                     if homeScore[whichGame] > trackedScores[whichTeam]:
                         
@@ -266,8 +259,10 @@ def checkScores():
     for whichTeam, horn in enumerate(hornToggles):
         if hornToggles[whichTeam] == 1:
             if firstRun != True:
-                print 'Goal scored!'
-                winsound.PlaySound(horns[trackedTeams[whichTeam]], winsound.SND_FILENAME)
+                print 'Goal scored!', hornToggles
+                winsound.PlaySound(horns[trackedTeams[whichTeam]], \
+                                   winsound.SND_FILENAME | winsound.SND_ASYNC)
+                #time.sleep(1)
             hornToggles[whichTeam] = 0;
 
     # No longer a rookie
@@ -275,27 +270,6 @@ def checkScores():
     
     # Pause before looping
     root.after(refreshRate*1000, checkScores)
-    
-    
-#######################################
-##
-##  Splash Screen
-##
-##  Displays
-##
-def splashScreen():
-
-    global page;
-    
-    page.config(width=300, height=100)
-    page.create_rectangle(0, 0, 300, 100, fill='red', width=0)
-
-    page.pack()
-
-    # Debug text
-    print 'Splash screen done.'
-    
-    return
 
 
 #######################################
@@ -307,7 +281,8 @@ def splashScreen():
 ##
 def initializeBoard():
 
-    global page; global numGames; global columnMax;
+    global page; global numGames; global pageWidth; global pageHeight;
+    global columnMax;
 
     # Choose the number of columns
     if numGames > columnMax:
@@ -350,10 +325,7 @@ def initializeBoard():
 ##
 def renderBox(gameNum, row, column):
 
-    global page; global sp; global gh; global gw;
-
-    lw = 100 #logo width
-    tw = 70 #text width
+    global page; global sp; global gh; global gw; global lw; global tw;
 
     x1 = sp+(gw+sp+sp)*(column-1)
     x2 = sp+(gw+sp+sp)*(column-1)+lw
@@ -397,246 +369,186 @@ def fillScoreboard():
         # Display away team logos and names
         if awayTeam[gameNum] == 'Anaheim':
             awayID[gameNum] = 0
-            #page.itemconfig(awayText[gameNum], text='DUCKS')
-            page.itemconfig(awayLogo[gameNum], image=logos[ducks])            
-        elif awayTeam[gameNum] == 'Boston':
+            page.itemconfig(awayLogo[gameNum], image=logos[ducks])
+        elif awayTeam[gameNum] == 'Arizona':
             awayID[gameNum] = 1
-            #page.itemconfig(awayText[gameNum], text='BRUINS')
+            page.itemconfig(awayLogo[gameNum], image=logos[coyotes])                        
+        elif awayTeam[gameNum] == 'Boston':
+            awayID[gameNum] = 2
             page.itemconfig(awayLogo[gameNum], image=logos[bruins])  
         elif awayTeam[gameNum] == 'Buffalo':
-            awayID[gameNum] = 2
-            #page.itemconfig(awayText[gameNum], text='SABRES')
+            awayID[gameNum] = 3
             page.itemconfig(awayLogo[gameNum], image=logos[sabres])
         elif awayTeam[gameNum] == 'Calgary':
-            awayID[gameNum] = 3
-            #page.itemconfig(awayText[gameNum], text='FLAMES')
+            awayID[gameNum] = 4
             page.itemconfig(awayLogo[gameNum], image=logos[flames])            
         elif awayTeam[gameNum] == 'Carolina':
-            awayID[gameNum] = 4
-            #page.itemconfig(awayText[gameNum], text='HURRICANES')
+            awayID[gameNum] = 5
             page.itemconfig(awayLogo[gameNum], image=logos[hurricanes])  
         elif awayTeam[gameNum] == 'Chicago':
-            awayID[gameNum] = 5
-            #page.itemconfig(awayText[gameNum], text='BLACKHAWKS')
+            awayID[gameNum] = 6
             page.itemconfig(awayLogo[gameNum], image=logos[blackhawks])
         elif awayTeam[gameNum] == 'Colorado':
-            awayID[gameNum] = 6
-            #page.itemconfig(awayText[gameNum], text='AVALANCHE')
+            awayID[gameNum] = 7
             page.itemconfig(awayLogo[gameNum], image=logos[avalanche])            
         elif awayTeam[gameNum] == 'Columbus':
-            awayID[gameNum] = 7
-            #page.itemconfig(awayText[gameNum], text='BLUE JACKETS')
+            awayID[gameNum] = 8
             page.itemconfig(awayLogo[gameNum], image=logos[bluejackets])  
         elif awayTeam[gameNum] == 'Dallas':
-            awayID[gameNum] = 8
-            #page.itemconfig(awayText[gameNum], text='STARS')
+            awayID[gameNum] = 9
             page.itemconfig(awayLogo[gameNum], image=logos[stars])
         elif awayTeam[gameNum] == 'Detroit':
-            awayID[gameNum] = 9
-            #page.itemconfig(awayText[gameNum], text='RED WINGS')
+            awayID[gameNum] = 10
             page.itemconfig(awayLogo[gameNum], image=logos[redwings])            
         elif awayTeam[gameNum] == 'Edmonton':
-            awayID[gameNum] = 10
-            #page.itemconfig(awayText[gameNum], text='OILERS')
+            awayID[gameNum] = 11
             page.itemconfig(awayLogo[gameNum], image=logos[oilers])  
         elif awayTeam[gameNum] == 'Florida':
-            awayID[gameNum] = 11
-            #page.itemconfig(awayText[gameNum], text='PANTHERS')
+            awayID[gameNum] = 12
             page.itemconfig(awayLogo[gameNum], image=logos[panthers])
         elif awayTeam[gameNum] == 'LosAngeles':
-            awayID[gameNum] = 12
-            #page.itemconfig(awayText[gameNum], text='KINGS')
+            awayID[gameNum] = 13
             page.itemconfig(awayLogo[gameNum], image=logos[kings])            
         elif awayTeam[gameNum] == 'Minnesota':
-            awayID[gameNum] = 13
-            #page.itemconfig(awayText[gameNum], text='WILD')
+            awayID[gameNum] = 14
             page.itemconfig(awayLogo[gameNum], image=logos[wild])  
         elif awayTeam[gameNum] == 'Montreal':
-            awayID[gameNum] = 14
-            #page.itemconfig(awayText[gameNum], text='CANADIENS')
+            awayID[gameNum] = 15
             page.itemconfig(awayLogo[gameNum], image=logos[canadiens])
         elif awayTeam[gameNum] == 'Nashville':
-            awayID[gameNum] = 15
-            #page.itemconfig(awayText[gameNum], text='PREDATORS')
+            awayID[gameNum] = 16
             page.itemconfig(awayLogo[gameNum], image=logos[predators])            
         elif awayTeam[gameNum] == 'NewJersey':
-            awayID[gameNum] = 16
-            #page.itemconfig(awayText[gameNum], text='DEVILS')
+            awayID[gameNum] = 17
             page.itemconfig(awayLogo[gameNum], image=logos[devils])  
         elif awayTeam[gameNum] == 'NYIslanders':
-            awayID[gameNum] = 17
-            #page.itemconfig(awayText[gameNum], text='ISLANDERS')
+            awayID[gameNum] = 18
             page.itemconfig(awayLogo[gameNum], image=logos[islanders])
         elif awayTeam[gameNum] == 'NYRangers':
-            awayID[gameNum] = 18
-            #page.itemconfig(awayText[gameNum], text='RANGERS')
+            awayID[gameNum] = 19
             page.itemconfig(awayLogo[gameNum], image=logos[rangers])            
         elif awayTeam[gameNum] == 'Ottawa':
-            awayID[gameNum] = 19
-            #page.itemconfig(awayText[gameNum], text='SENATORS')
+            awayID[gameNum] = 20
             page.itemconfig(awayLogo[gameNum], image=logos[senators])  
         elif awayTeam[gameNum] == 'Philadelphia':
-            awayID[gameNum] = 20
-            #page.itemconfig(awayText[gameNum], text='FLYERS')
-            page.itemconfig(awayLogo[gameNum], image=logos[flyers])
-        elif awayTeam[gameNum] == 'Arizona':
             awayID[gameNum] = 21
-            #page.itemconfig(awayText[gameNum], text='COYOTES')
-            page.itemconfig(awayLogo[gameNum], image=logos[coyotes])            
+            page.itemconfig(awayLogo[gameNum], image=logos[flyers])
         elif awayTeam[gameNum] == 'Pittsburgh':
             awayID[gameNum] = 22
-            #page.itemconfig(awayText[gameNum], text='PENGUINS')
             page.itemconfig(awayLogo[gameNum], image=logos[penguins])  
         elif awayTeam[gameNum] == 'SanJose':
             awayID[gameNum] = 23
-            #page.itemconfig(awayText[gameNum], text='SHARKS')
             page.itemconfig(awayLogo[gameNum], image=logos[sharks])
         elif awayTeam[gameNum] == 'StLouis':
             awayID[gameNum] = 24
-            #page.itemconfig(awayText[gameNum], text='BLUES')
             page.itemconfig(awayLogo[gameNum], image=logos[blues])            
         elif awayTeam[gameNum] == 'TampaBay':
             awayID[gameNum] = 25
-            #page.itemconfig(awayText[gameNum], text='LIGHTNING')
             page.itemconfig(awayLogo[gameNum], image=logos[lightning])  
         elif awayTeam[gameNum] == 'Toronto':
             awayID[gameNum] = 26
-            #page.itemconfig(awayText[gameNum], text='MAPLE LEAFS')
             page.itemconfig(awayLogo[gameNum], image=logos[mapleleafs])
         elif awayTeam[gameNum] == 'Vancouver':
             awayID[gameNum] = 27
-            #page.itemconfig(awayText[gameNum], text='CANUCKS')
             page.itemconfig(awayLogo[gameNum], image=logos[canucks])            
         elif awayTeam[gameNum] == 'Washington':
             awayID[gameNum] = 28
-            #page.itemconfig(awayText[gameNum], text='CAPITALS')
             page.itemconfig(awayLogo[gameNum], image=logos[capitals])  
         elif awayTeam[gameNum] == 'Winnipeg':
             awayID[gameNum] = 29
-            #page.itemconfig(awayText[gameNum], text='JETS')
             page.itemconfig(awayLogo[gameNum], image=logos[jets])   
           
         # Display home team logos and names
         if homeTeam[gameNum] == 'Anaheim':
             homeID[gameNum] = 0
-            #page.itemconfig(homeText[gameNum], text='DUCKS')
-            page.itemconfig(homeLogo[gameNum], image=logos[ducks])            
-        elif homeTeam[gameNum] == 'Boston':
+            page.itemconfig(homeLogo[gameNum], image=logos[ducks])
+        elif homeTeam[gameNum] == 'Arizona':
             homeID[gameNum] = 1
-            #page.itemconfig(homeText[gameNum], text='BRUINS')
+            page.itemconfig(homeLogo[gameNum], image=logos[coyotes])             
+        elif homeTeam[gameNum] == 'Boston':
+            homeID[gameNum] = 2
             page.itemconfig(homeLogo[gameNum], image=logos[bruins])  
         elif homeTeam[gameNum] == 'Buffalo':
-            homeID[gameNum] = 2
-            #page.itemconfig(homeText[gameNum], text='SABRES')
+            homeID[gameNum] = 3
             page.itemconfig(homeLogo[gameNum], image=logos[sabres])
         elif homeTeam[gameNum] == 'Calgary':
-            homeID[gameNum] = 3
-            #page.itemconfig(homeText[gameNum], text='FLAMES')
+            homeID[gameNum] = 4
             page.itemconfig(homeLogo[gameNum], image=logos[flames])            
         elif homeTeam[gameNum] == 'Carolina':
-            homeID[gameNum] = 4
-            #page.itemconfig(homeText[gameNum], text='HURRICANES')
+            homeID[gameNum] = 5
             page.itemconfig(homeLogo[gameNum], image=logos[hurricanes])  
         elif homeTeam[gameNum] == 'Chicago':
-            homeID[gameNum] = 5
-            #page.itemconfig(homeText[gameNum], text='BLACKHAWKS')
+            homeID[gameNum] = 6
             page.itemconfig(homeLogo[gameNum], image=logos[blackhawks])
         elif homeTeam[gameNum] == 'Colorado':
-            homeID[gameNum] = 6
-            #page.itemconfig(homeText[gameNum], text='AVALANCHE')
+            homeID[gameNum] = 7
             page.itemconfig(homeLogo[gameNum], image=logos[avalanche])            
         elif homeTeam[gameNum] == 'Columbus':
-            homeID[gameNum] = 7
-            #page.itemconfig(homeText[gameNum], text='BLUE JACKETS')
+            homeID[gameNum] = 8
             page.itemconfig(homeLogo[gameNum], image=logos[bluejackets])  
         elif homeTeam[gameNum] == 'Dallas':
-            homeID[gameNum] = 8
-            #page.itemconfig(homeText[gameNum], text='STARS')
+            homeID[gameNum] = 9
             page.itemconfig(homeLogo[gameNum], image=logos[stars])
         elif homeTeam[gameNum] == 'Detroit':
-            homeID[gameNum] = 9
-            #page.itemconfig(homeText[gameNum], text='RED WINGS')
+            homeID[gameNum] = 10
             page.itemconfig(homeLogo[gameNum], image=logos[redwings])            
         elif homeTeam[gameNum] == 'Edmonton':
-            homeID[gameNum] = 10
-            #page.itemconfig(homeText[gameNum], text='OILERS')
+            homeID[gameNum] = 11
             page.itemconfig(homeLogo[gameNum], image=logos[oilers])  
         elif homeTeam[gameNum] == 'Florida':
-            homeID[gameNum] = 11
-            #page.itemconfig(homeText[gameNum], text='PANTHERS')
+            homeID[gameNum] = 12
             page.itemconfig(homeLogo[gameNum], image=logos[panthers])
         elif homeTeam[gameNum] == 'LosAngeles':
-            homeID[gameNum] = 12
-            #page.itemconfig(homeText[gameNum], text='KINGS')
+            homeID[gameNum] = 13
             page.itemconfig(homeLogo[gameNum], image=logos[kings])            
         elif homeTeam[gameNum] == 'Minnesota':
-            homeID[gameNum] = 13
-            #page.itemconfig(homeText[gameNum], text='WILD')
+            homeID[gameNum] = 14
             page.itemconfig(homeLogo[gameNum], image=logos[wild])  
         elif homeTeam[gameNum] == 'Montreal':
-            homeID[gameNum] = 14
-            #page.itemconfig(homeText[gameNum], text='CANADIENS')
+            homeID[gameNum] = 15
             page.itemconfig(homeLogo[gameNum], image=logos[canadiens])
         elif homeTeam[gameNum] == 'Nashville':
-            homeID[gameNum] = 15
-            #page.itemconfig(homeText[gameNum], text='PREDATORS')
+            homeID[gameNum] = 16
             page.itemconfig(homeLogo[gameNum], image=logos[predators])            
         elif homeTeam[gameNum] == 'NewJersey':
-            homeID[gameNum] = 16
-            #page.itemconfig(homeText[gameNum], text='DEVILS')
+            homeID[gameNum] = 17
             page.itemconfig(homeLogo[gameNum], image=logos[devils])  
         elif homeTeam[gameNum] == 'NYIslanders':
-            homeID[gameNum] = 17
-            #page.itemconfig(homeText[gameNum], text='ISLANDERS')
+            homeID[gameNum] = 18
             page.itemconfig(homeLogo[gameNum], image=logos[islanders])
         elif homeTeam[gameNum] == 'NYRangers':
-            homeID[gameNum] = 18
-            #page.itemconfig(homeText[gameNum], text='RANGERS')
+            homeID[gameNum] = 19
             page.itemconfig(homeLogo[gameNum], image=logos[rangers])            
         elif homeTeam[gameNum] == 'Ottawa':
-            homeID[gameNum] = 19
-            #page.itemconfig(homeText[gameNum], text='SENATORS')
+            homeID[gameNum] = 20        
             page.itemconfig(homeLogo[gameNum], image=logos[senators])  
         elif homeTeam[gameNum] == 'Philadelphia':
-            homeID[gameNum] = 20
-            #page.itemconfig(homeText[gameNum], text='FLYERS')
-            page.itemconfig(homeLogo[gameNum], image=logos[flyers])
-        elif homeTeam[gameNum] == 'Arizona':
             homeID[gameNum] = 21
-            #page.itemconfig(homeText[gameNum], text='COYOTES')
-            page.itemconfig(homeLogo[gameNum], image=logos[coyotes])            
+            page.itemconfig(homeLogo[gameNum], image=logos[flyers])           
         elif homeTeam[gameNum] == 'Pittsburgh':
             homeID[gameNum] = 22
-            #page.itemconfig(homeText[gameNum], text='PENGUINS')
             page.itemconfig(homeLogo[gameNum], image=logos[penguins])  
         elif homeTeam[gameNum] == 'SanJose':
             homeID[gameNum] = 23
-            #page.itemconfig(homeText[gameNum], text='SHARKS')
             page.itemconfig(homeLogo[gameNum], image=logos[sharks])
         elif homeTeam[gameNum] == 'StLouis':
             homeID[gameNum] = 24
-            #page.itemconfig(homeText[gameNum], text='BLUES')
             page.itemconfig(homeLogo[gameNum], image=logos[blues])            
         elif homeTeam[gameNum] == 'TampaBay':
             homeID[gameNum] = 25
-            #page.itemconfig(homeText[gameNum], text='LIGHTNING')
             page.itemconfig(homeLogo[gameNum], image=logos[lightning])  
         elif homeTeam[gameNum] == 'Toronto':
             homeID[gameNum] = 26
-            #page.itemconfig(homeText[gameNum], text='MAPLE LEAFS')
             page.itemconfig(homeLogo[gameNum], image=logos[mapleleafs])
         elif homeTeam[gameNum] == 'Vancouver':
             homeID[gameNum] = 27
-            #page.itemconfig(homeText[gameNum], text='CANUCKS')
             page.itemconfig(homeLogo[gameNum], image=logos[canucks])            
         elif homeTeam[gameNum] == 'Washington':
             homeID[gameNum] = 28
-            #page.itemconfig(homeText[gameNum], text='CAPITALS')
             page.itemconfig(homeLogo[gameNum], image=logos[capitals])  
         elif homeTeam[gameNum] == 'Winnipeg':
             homeID[gameNum] = 29
-            #page.itemconfig(homeText[gameNum], text='JETS')
-            page.itemconfig(homeLogo[gameNum], image=logos[jets])   
+            page.itemconfig(homeLogo[gameNum], image=logos[jets]) 
 
     # Debug text
     print 'Scoreboard filled'
@@ -656,7 +568,7 @@ def fillScoreboard():
 ##
 def updateScoreboard():
 
-    global page
+    global page;
 
     # Loop through the games
     for gameNum in range(0,numGames):
