@@ -1,15 +1,20 @@
 ## TO DO
 ## -----
-## \ URL timing
+## N URL timing
 ##   N Improve performance: ~4 seconds for URLopen
-##   - Splash screen: needs a thread
-## - Horn playback threading
-## - Flash red for goal
+##   N Splash screen: needs a thread (max 4 seconds, min 2 seconds?)
+##       Can't splash screen serially, need to root.mainloop() first
+##       Tkinter can't display until root.mainloop() is run
+##       Currently, checkScores is run before root.mainloop()
+##       Can be done with a zeroth run flag which just displays and returns
+##       No delay with Windows 10, so sip
+## ! Horn playback threading: consider score change order?
+## ! Flash red for goal: what flashes red?
 ##
 ## - OT simplified
 ## - SO simplified
 ##
-## W Title text?
+## N Title text? Just a splash screen
 ##
 ## W Get all team horns
 ##
@@ -22,8 +27,6 @@ import Tkinter      #for graphics
 import os           #for file management
 from datetime import datetime     #for debugging
 
-import urllib2
-
 
 ################################################################################
 ##
@@ -34,7 +37,8 @@ import urllib2
 
 # Miscellaneous 
 refreshRate = 10                    #how often to update, in seconds **
-firstRun = 1;                       #first run flag
+zerothRun = True                    #zeroth run flag
+firstRun = True                     #first run flag
 
 # Display dimensions and settings
 sp = 20                             #spacer
@@ -81,15 +85,21 @@ except NameError:  # We are the main py2exe script, not a module
 
 def checkScores():
 
-    global refreshRate; global firstRun; global numGames
+    global refreshRate; global zerothRun; global firstRun; global numGames
     global awayTeam; global homeTeam; global awayID; global homeID;
     global awayScore; global homeScore; global timePeriod; global gameStatus;
+
+    if zerothRun:
+        splashScreen()
+        zerothRun = False;
+        root.after(3*1000, checkScores)
+        return
     
     # Read in the raw NHL scores information from the ESPN feed
     URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
-    #t0 = time.time()
+    t0 = time.time()
     fullText = urllib.urlopen(URL).read()
-    #t1 = time.time(); print 'URL time:',t1-t0
+    t1 = time.time(); print 'URL Open Time:',t1-t0
     
     # Read in a test file
     #doc = open("C:\\Python27\\Scripts\\Test Scores\\scores2m.html")
@@ -102,7 +112,7 @@ def checkScores():
     numGames = len(gamesArray)
 
     # Initialize arrays to game information
-    if firstRun == 1:
+    if firstRun == True:
         awayTeam = ['']*numGames
         homeTeam = ['']*numGames
         awayID = [-1]*numGames
@@ -209,13 +219,13 @@ def checkScores():
             timePeriod[whichGame] = game[1:len(game)-1]       
                     
             gameStatus[whichGame] = 0
-            
+    
     # Apply appropriate changes to the scoreboard display        
-    if firstRun == 1:
+    if firstRun == True:    
         loadLogos()
         loadHorns()
         initializeBoard()
-        fillScoreboard()   ##COMMENTED OUT FOR TKINTER DEVELOPMENT
+        fillScoreboard()
     else:
         updateScoreboard()
 
@@ -255,18 +265,39 @@ def checkScores():
     # Play goal horns if tracked scores have changed
     for whichTeam, horn in enumerate(hornToggles):
         if hornToggles[whichTeam] == 1:
-            if firstRun != 1:
+            if firstRun != True:
                 print 'Goal scored!'
                 winsound.PlaySound(horns[trackedTeams[whichTeam]], winsound.SND_FILENAME)
             hornToggles[whichTeam] = 0;
 
     # No longer a rookie
-    firstRun = 0;
+    firstRun = False
     
     # Pause before looping
     root.after(refreshRate*1000, checkScores)
     
     
+#######################################
+##
+##  Splash Screen
+##
+##  Displays
+##
+def splashScreen():
+
+    global page;
+    
+    page.config(width=300, height=100)
+    page.create_rectangle(0, 0, 300, 100, fill='red', width=0)
+
+    page.pack()
+
+    # Debug text
+    print 'Splash screen done.'
+    
+    return
+
+
 #######################################
 ##
 ##  Initialize Scoreboard
@@ -291,11 +322,9 @@ def initializeBoard():
     page.config(width=pageWidth, height=pageHeight)
     page.create_rectangle(0, 0, pageWidth, pageHeight, fill='white', width=0)
 
-
     # Draw the boxes
     boxCounter = 0
     currRow = 1
-
    
     while True:
         renderBox(boxCounter, currRow,1); boxCounter += 1;
