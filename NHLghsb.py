@@ -14,12 +14,20 @@
 ## TO DO
 ## -----
 ## X Horn playback threading (fixed with winsound.SND_ASYNC)
-## ! Flash red for goal: what flashes red? logo outer glow, length 9+ seconds
+## \ Flash red for goal: what flashes red? logo outer glow, length 9+ seconds
+##   - Create red outer glows for all teams, just access favorites
+##     X Show image upon horn
+##     ! Hide image after horn
+##   X Location of Tkinter initializations
+##   N Does having a first time checkScore function make sense? No, for looping reasons.
 ##
 ## N check window dimensions every update?
 ## X Avs goal horn won't play? trackedScores not getting updated b/c teamID change
 ## X Update teamIDs with teamIDs image=logos[homeID[gameNum]]
-## ! Multiple horns: take turns (in winsound, last one takes precedence)
+## X Multiple horns (in winsound, last one takes precedence): favorite only
+##
+## - hornToggle should be boolean (rename to goalFlag?)
+## - clean up variable scopes(global variable lists)
 ##
 ## - OT simplified
 ## - SO simplified
@@ -75,6 +83,10 @@ lw = 100                            #logo width
 tw = 70                             #text width
 columnMax = maxGames                #maximum number of games in a column **
 
+# UX information
+logos = [Tkinter.PhotoImage]*numTeams
+horns = ['']*numTeams
+
 # File information
 try:
     thisDir = os.path.dirname(os.path.abspath(__file__))
@@ -96,7 +108,8 @@ except NameError:  # We are the main py2exe script, not a module
 
 def checkScores():
 
-    global refreshRate; global firstRun; global numGames
+    global refreshRate; global firstRun; global numGames;
+    global trackedTeams; global trackedScores; global hornToggles;
     global awayTeam; global homeTeam; global awayID; global homeID;
     global awayScore; global homeScore; global timePeriod; global gameStatus;
 
@@ -118,7 +131,7 @@ def checkScores():
     gamesArray = gamesArray[1:len(gamesArray)]
     numGames = len(gamesArray)
 
-    # Initialize arrays to game information
+    # Initialize arrays to store game information
     if firstRun == True:
         awayTeam = ['']*numGames
         homeTeam = ['']*numGames
@@ -247,7 +260,7 @@ def checkScores():
 
                 # Match against the away team
                 if teamID == awayID[whichGame]:
-                    print 'tracking away'
+
                     # Check for a valid goal
                     if awayScore[whichGame] > trackedScores[whichTeam]:
                         
@@ -259,7 +272,7 @@ def checkScores():
 
                 # Match against the home team
                 if teamID == homeID[whichGame]:
-                    print 'tracking home'
+
                     # Check for a valid goal
                     if homeScore[whichGame] > trackedScores[whichTeam]:
                         
@@ -273,11 +286,12 @@ def checkScores():
     for whichTeam, horn in enumerate(hornToggles):
         if hornToggles[whichTeam] == 1:
             if firstRun != True:
-                print 'Goal scored!', hornToggles
+                print 'Goal scored by tracked team',whichTeam,'!'
                 winsound.PlaySound(horns[trackedTeams[whichTeam]], \
                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
-                #time.sleep(1)
-            hornToggles[whichTeam] = 0;
+                lightLamp()
+            hornToggles = [0]*len(hornToggles)
+            #hornToggles[whichTeam] = 0;
 
     # No longer a rookie
     firstRun = False
@@ -296,7 +310,18 @@ def checkScores():
 def initializeBoard():
 
     global page; global numGames; global pageWidth; global pageHeight;
-    global columnMax;
+    global columnMax; global awayLogo; global homeLogo;
+    global scoreText; global periodText; global timeText;
+    global awayLamps; global homeLamps;
+
+    # Initialize graphic and text elements
+    awayLogo = [page.create_image(0,0)]*numGames
+    awayLamps = [page.create_image(0,0)]*numGames
+    homeLogo = [page.create_image(0,0)]*numGames
+    homeLamps = [page.create_image(0,0)]*numGames
+    scoreText = [page.create_text(0,0)]*numGames
+    periodText = [page.create_text(0,0)]*numGames
+    timeText = [page.create_text(0,0)]*numGames
 
     # Choose the number of columns
     if numGames > columnMax:
@@ -340,6 +365,7 @@ def initializeBoard():
 def renderBox(gameNum, row, column):
 
     global page; global sp; global gh; global gw; global lw; global tw;
+    global awayLogo; global homeLogo
 
     x1 = sp+(gw+sp+sp)*(column-1)
     x2 = sp+(gw+sp+sp)*(column-1)+lw
@@ -347,6 +373,9 @@ def renderBox(gameNum, row, column):
     y2 = (gh+sp)*row
     awayLogo[gameNum] = page.create_image(x1, y1, anchor='nw')
 
+    awayLamps[gameNum] = page.create_image(x1, y1, anchor='nw', state='hidden')
+    page.itemconfig(awayLamps[gameNum], image=lampImage)
+    
     x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw/2
     y1 = sp+(gh+sp)*(row-1)+15
     scoreText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
@@ -360,6 +389,9 @@ def renderBox(gameNum, row, column):
     y1 = sp+(gh+sp)*(row-1)
     y2 = (gh+sp)*row        
     homeLogo[gameNum] = page.create_image(x1, y1, anchor='nw')
+
+    homeLamps[gameNum] = page.create_image(x1, y1, anchor='nw', state='hidden')
+    page.itemconfig(homeLamps[gameNum], image=lampImage)
     
     return
 
@@ -412,7 +444,7 @@ def fillScoreboard():
         elif awayTeam[gameNum] == 'Washington': awayID[gameNum] = capitals 
         elif awayTeam[gameNum] == 'Winnipeg': awayID[gameNum] = jets
         page.itemconfig(awayLogo[gameNum], image=logos[awayID[gameNum]])   
-          
+        
         # Display home team logos and names
         if homeTeam[gameNum] == 'Anaheim': homeID[gameNum] = ducks
         elif homeTeam[gameNum] == 'Arizona': homeID[gameNum] = coyotes           
@@ -444,7 +476,7 @@ def fillScoreboard():
         elif homeTeam[gameNum] == 'Vancouver': homeID[gameNum] = canucks       
         elif homeTeam[gameNum] == 'Washington': homeID[gameNum] = capitals
         elif homeTeam[gameNum] == 'Winnipeg': homeID[gameNum] = jets
-        page.itemconfig(homeLogo[gameNum], image=logos[homeID[gameNum]]) 
+        page.itemconfig(homeLogo[gameNum], image=logos[homeID[gameNum]])      
 
     # Debug text
     print 'Scoreboard filled'
@@ -465,6 +497,7 @@ def fillScoreboard():
 def updateScoreboard():
 
     global page;
+    global periodText; global scoreText; global timeText;
 
     # Loop through the games
     for gameNum in range(0,numGames):
@@ -494,12 +527,62 @@ def updateScoreboard():
 
 #######################################
 ##
+##  Light the Lamp
+##
+##  
+##  
+##
+def lightLamp():
+
+    global page; global sp; global gh; global gw; global lw; global tw;
+
+    global hornToggles
+
+    print 'LIGHT THE LAMP!'
+    #page.create_rectangle(0,0,100,100,fill='red',width=0)
+
+
+
+    # Play goal horns if tracked scores have changed
+    for faveIndex, toggle in enumerate(hornToggles):
+        if toggle == 1:
+            if trackedTeams[faveIndex] in homeID:
+                page.itemconfig(homeLamps[homeID.index(\
+                                trackedTeams[faveIndex])], state='normal')
+            else:
+                page.itemconfig(awayLamps[awayID.index(\
+                                trackedTeams[faveIndex])], state='normal')
+
+            
+            
+
+        
+    
+##    x1 = sp+(gw+sp+sp)*(column-1)
+##    x2 = sp+(gw+sp+sp)*(column-1)+lw
+##    y1 = sp+(gh+sp)*(row-1)
+##    y2 = (gh+sp)*row
+##    awayLogo[gameNum] = page.create_image(x1, y1, anchor='nw')
+##
+##    x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp
+##    x2 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw
+##    y1 = sp+(gh+sp)*(row-1)
+##    y2 = (gh+sp)*row        
+##    homeLogo[gameNum] = page.create_image(x1, y1, anchor='nw')
+    
+    return
+
+
+#######################################
+##
 ##  Load Logos
 ##
 ##  Loads the team logo images for the purpose of filling the scoreboard.
 ##  Should only be used one time. 
 ##
 def loadLogos():
+
+    global logos; global lampImage;
 
     logoDirectory = thisDir+'\\Assets\\Images\\'
     logos[ducks] = Tkinter.PhotoImage(file=logoDirectory+'ANA.gif')
@@ -532,6 +615,7 @@ def loadLogos():
     logos[canucks] = Tkinter.PhotoImage(file=logoDirectory+'VAN.gif')
     logos[capitals] = Tkinter.PhotoImage(file=logoDirectory+'WAS.gif')
     logos[jets] = Tkinter.PhotoImage(file=logoDirectory+'WIN.gif')
+    lampImage = Tkinter.PhotoImage(file=logoDirectory+'lamp.gif')
     
 
 #######################################
@@ -543,6 +627,8 @@ def loadLogos():
 ##
 def loadHorns():
 
+    global horns;
+    
     hornDirectory = thisDir+'\\Assets\\Audio\\'
     horns[avalanche] = hornDirectory+'colorado.wav'
     horns[penguins] = hornDirectory+'pittsburgh.wav'
@@ -555,19 +641,58 @@ def loadHorns():
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
 root.iconbitmap('icon.ico')
-
-# Initialize variable scoreboard display elements
 page = Tkinter.Canvas(root, highlightthickness=0)
-awayLogo = [page.create_image(0,0)]*maxGames
-homeLogo = [page.create_image(0,0)]*maxGames
-scoreText = [page.create_text(0,0)]*maxGames
-periodText = [page.create_text(0,0)]*maxGames
-timeText = [page.create_text(0,0)]*maxGames
-logos = [Tkinter.PhotoImage]*numTeams
-horns = ['']*numTeams
      
 # Begin checking for scores
 checkScores()
 
 # Tkinter event loop
 root.mainloop()
+
+
+
+
+
+
+##DUMP
+
+
+#awayLogo = [page.create_image(0,0)]*maxGames
+#homeLogo = [page.create_image(0,0)]*maxGames
+#scoreText = [page.create_text(0,0)]*maxGames
+#periodText = [page.create_text(0,0)]*maxGames
+#timeText = [page.create_text(0,0)]*maxGames
+#
+#del timeText[numGames:]
+
+
+
+
+
+
+
+
+            #if awayID[gameNum] in trackedTeams:
+        #page.create_rectangle(x1,y1,x2,y2,fill='red',width=0)
+
+##    # Check for tracked teams
+##    for whichTeam, teamID in enumerate(trackedTeams):
+##
+##        # Match against the away team
+##        if teamID == awayID[gameNum]:
+##
+##            pass
+##
+##        # Match against the home team
+##        if teamID == homeID[gameNum]:
+##
+##            # Check for a valid goal
+##            if homeScore[whichGame] > trackedScores[whichTeam]:
+##                
+##                # Toggle goal horn
+##                hornToggles[whichTeam] = 1
+##
+##                # Update the tracked score
+##                trackedScores[whichTeam] = homeScore[whichGame]  
+
+    #[]page.create_image(x1,y1, anchor = 'center', state='hidden')
