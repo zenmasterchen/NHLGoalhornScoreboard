@@ -14,10 +14,11 @@
 ## TO DO
 ## -----
 ## X Horn playback threading (fixed with winsound.SND_ASYNC)
-## \ Flash red for goal: what flashes red? logo outer glow, length 9+ seconds
-##   - Create red outer glows for all teams, just access favorites
+## X Flash red for goal: what flashes red? logo outer glow, length 9+ seconds
+##   X Create red outer glows for all teams, just access favorites
 ##     X Show image upon horn
-##     ! Hide image after horn
+##     X Hide image upon next cycle
+##     X Glow is 15 px larger than logo
 ##   X Location of Tkinter initializations
 ##   N Does having a first time checkScore function make sense? No, for looping reasons.
 ##
@@ -26,11 +27,15 @@
 ## X Update teamIDs with teamIDs image=logos[homeID[gameNum]]
 ## X Multiple horns (in winsound, last one takes precedence): favorite only
 ##
-## - hornToggle should be boolean (rename to goalFlag?)
-## - clean up variable scopes(global variable lists)
+## - Delayed case
 ##
-## - OT simplified
-## - SO simplified
+## - hornToggle should be boolean (rename to goalFlag?)
+## - Clean up variable scopes(global variable lists)
+##
+## - Save to executable
+##
+## - OT simplified (observe first)
+## - SO simplified (observe first)
 ##
 ## W Get all team horns
 ##
@@ -115,16 +120,16 @@ def checkScores():
 
     
     # Read in the raw NHL scores information from the ESPN feed
-    #URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
-    #t0 = time.time()
-    #fullText = urllib.urlopen(URL).read()
-    #t1 = time.time();
-    #if t1-t0 > 3: print 'URL OPEN LAG (IN SECONDS) =',t1-t0
+    URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
+    t0 = time.time()
+    fullText = urllib.urlopen(URL).read()
+    t1 = time.time();
+    if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
     
     # Read in a test file
-    doc = open("C:\\Python27\\Scripts\\Test Scores\\scores2m.html")
+    #doc = open("C:\\Python27\\Scripts\\Test Scores\\scores2m.html")
     #doc = open("C:\\NHL Scoreboard\\Development\\Test Scores\\scores5.htm")
-    fullText = doc.readline()
+    #fullText = doc.readline()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')
@@ -247,6 +252,7 @@ def checkScores():
         initializeBoard()
         fillScoreboard()
     else:
+        toggleLamps()
         updateScoreboard()
 
     # Loop through the games again to check on favorite teams
@@ -286,13 +292,12 @@ def checkScores():
     for whichTeam, horn in enumerate(hornToggles):
         if hornToggles[whichTeam] == 1:
             if firstRun != True:
-                print 'Goal scored by tracked team',whichTeam,'!'
+                print 'Goal scored!' # by tracked team',whichTeam,'!'
                 winsound.PlaySound(horns[trackedTeams[whichTeam]], \
                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
-                lightLamp()
+                toggleLamps()
             hornToggles = [0]*len(hornToggles)
-            #hornToggles[whichTeam] = 0;
-
+    
     # No longer a rookie
     firstRun = False
     
@@ -334,7 +339,7 @@ def initializeBoard():
     pageHeight = sp + (gh+sp)*round(float(numGames)/numColumns)
     
     page.config(width=pageWidth, height=pageHeight)
-    page.create_rectangle(0, 0, pageWidth, pageHeight, fill='white', width=0)
+    #page.create_rectangle(0, 0, pageWidth, pageHeight, fill='white', width=0)
 
     # Draw the boxes
     boxCounter = 0
@@ -367,15 +372,12 @@ def renderBox(gameNum, row, column):
     global page; global sp; global gh; global gw; global lw; global tw;
     global awayLogo; global homeLogo
 
-    x1 = sp+(gw+sp+sp)*(column-1)
-    x2 = sp+(gw+sp+sp)*(column-1)+lw
-    y1 = sp+(gh+sp)*(row-1)
-    y2 = (gh+sp)*row
-    awayLogo[gameNum] = page.create_image(x1, y1, anchor='nw')
-
-    awayLamps[gameNum] = page.create_image(x1, y1, anchor='nw', state='hidden')
+    x1 = sp+(gw+sp+sp)*(column-1)+lw/2
+    y1 = sp+(gh+sp)*(row-1)+gh/2
+    awayLamps[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
     page.itemconfig(awayLamps[gameNum], image=lampImage)
-    
+    awayLogo[gameNum] = page.create_image(x1, y1, anchor='center')
+
     x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw/2
     y1 = sp+(gh+sp)*(row-1)+15
     scoreText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
@@ -384,14 +386,11 @@ def renderBox(gameNum, row, column):
     y1 = sp+(gh+sp)*(row-1)+gh/2-1
     timeText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
 
-    x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp
-    x2 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw
-    y1 = sp+(gh+sp)*(row-1)
-    y2 = (gh+sp)*row        
-    homeLogo[gameNum] = page.create_image(x1, y1, anchor='nw')
-
-    homeLamps[gameNum] = page.create_image(x1, y1, anchor='nw', state='hidden')
+    x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw/2
+    y1 = sp+(gh+sp)*(row-1)+gh/2
+    homeLamps[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
     page.itemconfig(homeLamps[gameNum], image=lampImage)
+    homeLogo[gameNum] = page.create_image(x1, y1, anchor='center')
     
     return
 
@@ -527,48 +526,33 @@ def updateScoreboard():
 
 #######################################
 ##
-##  Light the Lamp
+##  Toggle Lamps
 ##
-##  
-##  
+##  Lights the lamps (logo glows) when teams have scored, or resets them
+##  to hidden otherwise.
 ##
-def lightLamp():
+def toggleLamps():
 
     global page; global sp; global gh; global gw; global lw; global tw;
+    global homeID; global awayID;
+    global hornToggles;
 
-    global hornToggles
-
-    print 'LIGHT THE LAMP!'
-    #page.create_rectangle(0,0,100,100,fill='red',width=0)
-
-
-
-    # Play goal horns if tracked scores have changed
+    
     for faveIndex, toggle in enumerate(hornToggles):
-        if toggle == 1:
-            if trackedTeams[faveIndex] in homeID:
+        if trackedTeams[faveIndex] in homeID:
+            if toggle == 1:
                 page.itemconfig(homeLamps[homeID.index(\
                                 trackedTeams[faveIndex])], state='normal')
             else:
+                page.itemconfig(homeLamps[homeID.index(\
+                                trackedTeams[faveIndex])], state='hidden')
+        elif trackedTeams[faveIndex] in awayID:
+            if toggle == 1:
                 page.itemconfig(awayLamps[awayID.index(\
                                 trackedTeams[faveIndex])], state='normal')
-
-            
-            
-
-        
-    
-##    x1 = sp+(gw+sp+sp)*(column-1)
-##    x2 = sp+(gw+sp+sp)*(column-1)+lw
-##    y1 = sp+(gh+sp)*(row-1)
-##    y2 = (gh+sp)*row
-##    awayLogo[gameNum] = page.create_image(x1, y1, anchor='nw')
-##
-##    x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp
-##    x2 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw
-##    y1 = sp+(gh+sp)*(row-1)
-##    y2 = (gh+sp)*row        
-##    homeLogo[gameNum] = page.create_image(x1, y1, anchor='nw')
+            else:
+                page.itemconfig(awayLamps[awayID.index(\
+                                trackedTeams[faveIndex])], state='hidden')
     
     return
 
@@ -641,7 +625,7 @@ def loadHorns():
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
 root.iconbitmap('icon.ico')
-page = Tkinter.Canvas(root, highlightthickness=0)
+page = Tkinter.Canvas(root, highlightthickness=0, background='white')
      
 # Begin checking for scores
 checkScores()
