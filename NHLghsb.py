@@ -27,15 +27,20 @@
 ## X Update teamIDs with teamIDs image=logos[homeID[gameNum]]
 ## X Multiple horns (in winsound, last one takes precedence): favorite only
 ##
-## - Delayed case
-##
-## - hornToggle should be boolean (rename to goalFlag?)
-## - Clean up variable scopes(global variable lists)
-##
-## - Save to executable
+## X Delayed game case
 ##
 ## - OT simplified (observe first)
 ## - SO simplified (observe first)
+##
+## - hornToggle should be boolean (rename to goalFlag?)
+## - Clean up variable scopes(global variable lists)
+## - Standardize quotation marks (single or double)
+## - Clean up parsing using "if in" statements
+##
+## X Sleep behavior
+## - Scoreboard switchover corner case (OOR)
+##
+## - Save to executable
 ##
 ## W Get all team horns
 ##
@@ -122,7 +127,12 @@ def checkScores():
     # Read in the raw NHL scores information from the ESPN feed
     URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
     t0 = time.time()
-    fullText = urllib.urlopen(URL).read()
+    try:
+        fullText = urllib.urlopen(URL).read()
+    except:
+        print 'URL OPEN ERROR'
+        root.after(refreshRate*1000, checkScores)
+        return
     t1 = time.time();
     if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
     
@@ -161,7 +171,7 @@ def checkScores():
         # Detect double digit game IDs
         if game[0] == '=':
             game = game[1:len(game)]
-            
+        
         # Detect overtime in progress and fix (known feed issue)
         if game.find('(-1') != -1:
             game = game.replace('(-1','(')
@@ -203,8 +213,8 @@ def checkScores():
             game = game.replace('Tampa Bay','TampaBay')
 
         # Parse the shit out of games in progress (1-5) or finished (9)
-        if game.find('AM ET')+game.find('PM ET') == -2:
-
+        if game.find('AM ET')+game.find('PM ET')+game.find('DELAYED') == -3:
+            
             awayTeam[whichGame] = game[0:game.find(' ')]
             game = game[game.find(' ')+1:len(game)]
             awayScore[whichGame] = game[0:game.find(' ')]
@@ -236,12 +246,11 @@ def checkScores():
             
         # Parse the shit out of games not yet started(0)
         else:
-
             awayTeam[whichGame] = game[0:game.find(' ')]
             game = game[game.find(' ')+4:len(game)]
             homeTeam[whichGame] = game[0:game.find(' ')]
-            game = game[game.find(' ')+1:len(game)]        
-            timePeriod[whichGame] = game[1:len(game)-1]       
+            game = game[game.find(' ')+1:len(game)]
+            timePeriod[whichGame] = game[1:len(game)-1]
                     
             gameStatus[whichGame] = 0
     
@@ -504,7 +513,8 @@ def updateScoreboard():
         # Games not yet started (0)
         if gameStatus[gameNum] == 0:
             time = timePeriod[gameNum]
-            time = time[0:len(time)-3] #remove 'ET'
+            if 'ET' in time:
+                time = time[0:len(time)-3]
             page.itemconfig(periodText[gameNum], text='')
             page.itemconfig(scoreText[gameNum], text='')  
             page.itemconfig(timeText[gameNum], text=time)
