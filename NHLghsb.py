@@ -38,11 +38,11 @@
 ## X Clean up parsing (use "if in" statements)
 ##
 ## X Sleep behavior
-## - Scoreboard switchover corner case (OOR)
+## X Scoreboard switchover corner case (OOR)
 ##
 ## - Save to executable
 ##
-## - Track all teams for lamps
+## ! Track all teams for lamps
 ## W Get all team horns
 ##
 
@@ -123,7 +123,7 @@ except NameError:  # We are the main py2exe script, not a module
 
 def checkScores():
 
-    global URL; global refreshRate; global firstRun; global numGames;
+    global URL; global page; global refreshRate; global firstRun; global numGames;
     global trackedTeams; global trackedScores; global goalFlag; global horns;
     global awayTeam; global homeTeam; global awayID; global homeID;
     global awayScore; global homeScore; global timePeriod; global gameStatus;
@@ -131,23 +131,27 @@ def checkScores():
     
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
-    #try:
-    #    fullText = urllib.urlopen(URL).read()
-    #except:
-    #    print 'URL OPEN ERROR'
-    #    root.after(refreshRate*1000, checkScores)
-    #    return
-    #t1 = time.time();
-    #if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
+    try:
+        fullText = urllib.urlopen(URL).read()
+    except:
+        print 'URL OPEN ERROR'
+        root.after(refreshRate*1000, checkScores)
+        return
+    t1 = time.time();
+    if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
     
     # Read in a test file
-    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\nodelay.htm')
     #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores5.htm')
-    fullText = doc.readline()
+    #fullText = doc.readline()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
-    numGames = len(gamesArray)
+    if len(gamesArray) != numGames and firstRun == False:
+        print 'New game(s) detected'
+        firstRun = True
+        page.delete('all')
+    numGames = len(gamesArray)        
 
     # Initialize arrays to store game information
     if firstRun == True:
