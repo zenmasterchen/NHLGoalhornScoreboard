@@ -29,19 +29,20 @@
 ##
 ## X Delayed game case
 ##
-## - OT simplified (observe first)
-## - SO simplified (observe first)
+## W OT simplified (observe first)
+## W SO simplified (observe first - need test case)
 ##
-## - hornToggle should be boolean (rename to goalFlag?)
-## - Clean up variable scopes(global variable lists)
-## - Standardize quotation marks (single or double)
-## - Clean up parsing using "if in" statements
+## X hornToggle should be boolean (rename to goalFlag)
+## X Clean up variable scopes(global variable lists)
+## X Standardize quotation marks (single or double)
+## X Clean up parsing (use "if in" statements)
 ##
 ## X Sleep behavior
 ## - Scoreboard switchover corner case (OOR)
 ##
 ## - Save to executable
 ##
+## - Track all teams for lamps
 ## W Get all team horns
 ##
 
@@ -64,11 +65,7 @@ from datetime import datetime     #for debugging
 # Miscellaneous 
 refreshRate = 10                    #how often to update, in seconds **
 firstRun = True                     #first run flag
-
-# NHL information
-numTeams = 30
-maxGames = numTeams/2                       
-numGames = 0
+numTeams = 30                   
 
 # Team IDs for logos (DO NOT ALTER)
 ducks = 0; coyotes = 1; bruins = 2; sabres = 3; flames = 4;
@@ -81,7 +78,13 @@ lightning = 25; mapleleafs = 26; canucks = 27; capitals = 28; jets = 29;
 # Tracking information
 trackedTeams = [avalanche, penguins]    #teams to track **
 trackedScores = [0]*len(trackedTeams)   #scores to track
-hornToggles = [0]*len(trackedTeams)     #goal horn flags
+goalFlag = [False]*len(trackedTeams)    #goal scored flags
+
+# Game information
+numGames = 0 #timePeriod, gameStatus
+#scoreText, periodText, timeText
+#awayTeam, awayID, awayScore, awayLogo, awayLamps
+#homeTeam, homeID, homeScore, homeLogo, homeLamps
 
 # Display dimensions and settings
 pageWidth = 0                       #window width
@@ -91,13 +94,15 @@ gh = 50                             #game height, inner
 gw = 310                            #game width, inner
 lw = 100                            #logo width
 tw = 70                             #text width
-columnMax = maxGames                #maximum number of games in a column **
+columnMax = numTeams/2              #maximum number of games in a column **
 
 # UX information
 logos = [Tkinter.PhotoImage]*numTeams
+lampImage = Tkinter.PhotoImage
 horns = ['']*numTeams
 
 # File information
+URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
 try:
     thisDir = os.path.dirname(os.path.abspath(__file__))
 except NameError:  # We are the main py2exe script, not a module
@@ -118,32 +123,30 @@ except NameError:  # We are the main py2exe script, not a module
 
 def checkScores():
 
-    global refreshRate; global firstRun; global numGames;
-    global trackedTeams; global trackedScores; global hornToggles;
+    global URL; global refreshRate; global firstRun; global numGames;
+    global trackedTeams; global trackedScores; global goalFlag; global horns;
     global awayTeam; global homeTeam; global awayID; global homeID;
     global awayScore; global homeScore; global timePeriod; global gameStatus;
 
     
     # Read in the raw NHL scores information from the ESPN feed
-    URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
     t0 = time.time()
-    try:
-        fullText = urllib.urlopen(URL).read()
-    except:
-        print 'URL OPEN ERROR'
-        root.after(refreshRate*1000, checkScores)
-        return
-    t1 = time.time();
-    if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
+    #try:
+    #    fullText = urllib.urlopen(URL).read()
+    #except:
+    #    print 'URL OPEN ERROR'
+    #    root.after(refreshRate*1000, checkScores)
+    #    return
+    #t1 = time.time();
+    #if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
     
     # Read in a test file
-    #doc = open("C:\\Python27\\Scripts\\Test Scores\\scores2m.html")
-    #doc = open("C:\\NHL Scoreboard\\Development\\Test Scores\\scores5.htm")
-    #fullText = doc.readline()
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+    #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores5.htm')
+    fullText = doc.readline()
 
     # Roughly cut out each game using NHL delimiters
-    gamesArray = fullText.split('nhl_s_left')
-    gamesArray = gamesArray[1:len(gamesArray)]
+    gamesArray = fullText.split('nhl_s_left')[1:]
     numGames = len(gamesArray)
 
     # Initialize arrays to store game information
@@ -158,7 +161,7 @@ def checkScores():
         gameStatus = [-1]*numGames
         
     # Loop through the games
-    for whichGame, game in enumerate(gamesArray):
+    for index, game in enumerate(gamesArray):
         
         # Cut out the game information from the main string
         game = game[2:game.find('&nhl_s_right')]
@@ -170,10 +173,10 @@ def checkScores():
         
         # Detect double digit game IDs
         if game[0] == '=':
-            game = game[1:len(game)]
+            game = game[1:]
         
         # Detect overtime in progress and fix (known feed issue)
-        if game.find('(-1') != -1:
+        if '(-1' in game:
             game = game.replace('(-1','(')
             game = game.replace('0-','')
 
@@ -213,50 +216,49 @@ def checkScores():
             game = game.replace('Tampa Bay','TampaBay')
 
         # Parse the shit out of games in progress (1-5) or finished (9)
-        if game.find('AM ET')+game.find('PM ET')+game.find('DELAYED') == -3:
-            
-            awayTeam[whichGame] = game[0:game.find(' ')]
-            game = game[game.find(' ')+1:len(game)]
-            awayScore[whichGame] = game[0:game.find(' ')]
-            game = game[game.find(' ')+2:len(game)]
+        if 'AM ET' not in game and 'PM ET' not in game and 'DELAY' not in game:
+            awayTeam[index] = game[:game.find(' ')]
+            game = game[game.find(' ')+1:]
+            awayScore[index] = game[:game.find(' ')]
+            game = game[game.find(' ')+2:]
 
-            homeTeam[whichGame] = game[0:game.find(' ')]
-            game = game[game.find(' ')+1:len(game)]
-            homeScore[whichGame] = game[0:game.find(' ')]
-            game = game[game.find(' ')+1:len(game)]        
-            timePeriod[whichGame] = game[1:len(game)-1]
+            homeTeam[index] = game[:game.find(' ')]
+            game = game[game.find(' ')+1:]
+            homeScore[index] = game[:game.find(' ')]
+            game = game[game.find(' ')+1:]        
+            timePeriod[index] = game[1:len(game)-1]
 
             # Detect period
-            if game.find('1ST') != -1:                
-                gameStatus[whichGame] = 1
-            if game.find('2ND') != -1:                
-                gameStatus[whichGame] = 2
-            if game.find('3RD') != -1:                
-                gameStatus[whichGame] = 3
-            if game.find('2ND OT') != -1:
-                timePeriod[whichGame] = timePeriod[whichGame].replace('2ND OT','SO')
-                timePeriod[whichGame] = timePeriod[whichGame].replace('- SO','(SO)')                
-                gameStatus[whichGame] = 5
-            if game.find('OT') != -1:
-                timePeriod[whichGame] = timePeriod[whichGame].replace('1ST OT','OT')
-                timePeriod[whichGame] = timePeriod[whichGame].replace('- OT','(OT)')
-                gameStatus[whichGame] = 4
-            if game.find('FINAL') != -1:                
-                gameStatus[whichGame] = 9
+            if '1ST' in game:
+                gameStatus[index] = 1
+            elif '2ND' in game:
+                gameStatus[index] = 2
+            elif '3RD' in game:
+                gameStatus[index] = 3
+            if '2ND OT' in game:
+                timePeriod[index] = timePeriod[index].replace('2ND OT','SO')
+                timePeriod[index] = timePeriod[index].replace('- SO','(SO)')                
+                gameStatus[index] = 5
+            elif 'OT' in game:
+                timePeriod[index] = timePeriod[index].replace('1ST OT','OT')
+                timePeriod[index] = timePeriod[index].replace('- OT','(OT)')
+                gameStatus[index] = 4
+            if 'FINAL' in game: 
+                gameStatus[index] = 9
             
         # Parse the shit out of games not yet started(0)
         else:
-            awayTeam[whichGame] = game[0:game.find(' ')]
+            awayTeam[index] = game[0:game.find(' ')]
             game = game[game.find(' ')+4:len(game)]
-            homeTeam[whichGame] = game[0:game.find(' ')]
+            homeTeam[index] = game[0:game.find(' ')]
             game = game[game.find(' ')+1:len(game)]
-            timePeriod[whichGame] = game[1:len(game)-1]
+            timePeriod[index] = game[1:len(game)-1]
                     
-            gameStatus[whichGame] = 0
+            gameStatus[index] = 0
     
     # Apply appropriate changes to the scoreboard display        
     if firstRun == True:    
-        loadLogos()
+        loadImages()
         loadHorns()
         initializeBoard()
         fillScoreboard()
@@ -264,48 +266,48 @@ def checkScores():
         toggleLamps()
         updateScoreboard()
 
-    # Loop through the games again to check on favorite teams
-    for whichGame, game in enumerate(gamesArray):
+    # Loop through the games again to check on tracked teams #WILL BE REDONE
+    for index, game in enumerate(gamesArray):
         
         # Detect game in progress
-        if gameStatus[whichGame] > 0 and gameStatus[whichGame] <= 5:
+        if gameStatus[index] > 0 and gameStatus[index] <= 5:
 
             # Check for tracked teams
-            for whichTeam, teamID in enumerate(trackedTeams):
+            for trackedIndex, teamID in enumerate(trackedTeams):
 
                 # Match against the away team
-                if teamID == awayID[whichGame]:
+                if teamID == awayID[index]:
 
                     # Check for a valid goal
-                    if awayScore[whichGame] > trackedScores[whichTeam]:
+                    if awayScore[index] > trackedScores[trackedIndex]:
                         
-                        # Toggle goal horn
-                        hornToggles[whichTeam] = 1
+                        # Count it
+                        goalFlag[trackedIndex] = True
 
                         # Update the tracked score
-                        trackedScores[whichTeam] = awayScore[whichGame]
+                        trackedScores[trackedIndex] = awayScore[index]
 
                 # Match against the home team
-                if teamID == homeID[whichGame]:
+                if teamID == homeID[index]:
 
                     # Check for a valid goal
-                    if homeScore[whichGame] > trackedScores[whichTeam]:
+                    if homeScore[index] > trackedScores[trackedIndex]:
                         
-                        # Toggle goal horn
-                        hornToggles[whichTeam] = 1
+                        # Count it
+                        goalFlag[trackedIndex] = True
 
                         # Update the tracked score
-                        trackedScores[whichTeam] = homeScore[whichGame]           
+                        trackedScores[trackedIndex] = homeScore[index]           
             
-    # Play goal horns if tracked scores have changed
-    for whichTeam, horn in enumerate(hornToggles):
-        if hornToggles[whichTeam] == 1:
-            if firstRun != True:
-                print 'Goal scored!' # by tracked team',whichTeam,'!'
-                winsound.PlaySound(horns[trackedTeams[whichTeam]], \
+    # Play goal horns and light the lamp if tracked scores have changed
+    for trackedIndex, flag in enumerate(goalFlag):
+        if flag:
+            if not firstRun:
+                print 'Goal scored!'
+                winsound.PlaySound(horns[trackedTeams[trackedIndex]], \
                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
                 toggleLamps()
-            hornToggles = [0]*len(hornToggles)
+            goalFlag = [False]*len(goalFlag)
     
     # No longer a rookie
     firstRun = False
@@ -326,13 +328,13 @@ def initializeBoard():
     global page; global numGames; global pageWidth; global pageHeight;
     global columnMax; global awayLogo; global homeLogo;
     global scoreText; global periodText; global timeText;
-    global awayLamps; global homeLamps;
+    global awayLamp; global homeLamp;
 
     # Initialize graphic and text elements
     awayLogo = [page.create_image(0,0)]*numGames
-    awayLamps = [page.create_image(0,0)]*numGames
+    awayLamp = [page.create_image(0,0)]*numGames
     homeLogo = [page.create_image(0,0)]*numGames
-    homeLamps = [page.create_image(0,0)]*numGames
+    homeLamp = [page.create_image(0,0)]*numGames
     scoreText = [page.create_text(0,0)]*numGames
     periodText = [page.create_text(0,0)]*numGames
     timeText = [page.create_text(0,0)]*numGames
@@ -348,12 +350,10 @@ def initializeBoard():
     pageHeight = sp + (gh+sp)*round(float(numGames)/numColumns)
     
     page.config(width=pageWidth, height=pageHeight)
-    #page.create_rectangle(0, 0, pageWidth, pageHeight, fill='white', width=0)
 
     # Draw the boxes
     boxCounter = 0
     currRow = 1
-   
     while True:
         renderBox(boxCounter, currRow,1); boxCounter += 1;
         if boxCounter >= numGames: break
@@ -379,12 +379,12 @@ def initializeBoard():
 def renderBox(gameNum, row, column):
 
     global page; global sp; global gh; global gw; global lw; global tw;
-    global awayLogo; global homeLogo
+    global awayLogo; global homeLogo; global awayLamp; global homeLamp;
 
     x1 = sp+(gw+sp+sp)*(column-1)+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
-    awayLamps[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
-    page.itemconfig(awayLamps[gameNum], image=lampImage)
+    awayLamp[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
+    page.itemconfig(awayLamp[gameNum], image=lampImage)
     awayLogo[gameNum] = page.create_image(x1, y1, anchor='center')
 
     x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw/2
@@ -397,8 +397,8 @@ def renderBox(gameNum, row, column):
 
     x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
-    homeLamps[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
-    page.itemconfig(homeLamps[gameNum], image=lampImage)
+    homeLamp[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
+    page.itemconfig(homeLamp[gameNum], image=lampImage)
     homeLogo[gameNum] = page.create_image(x1, y1, anchor='center')
     
     return
@@ -410,12 +410,13 @@ def renderBox(gameNum, row, column):
 ##
 ##  Configures the team names, IDs, and logos, then calls updateScoreboard to
 ##  configure the score and period/time text. Should only be used one time, upon
-##  the first run of checkScores(). loadLogos() and initializeBoard() must be
+##  the first run of checkScores(). loadImages() and initializeBoard() must be
 ##  called (or have previously been called) prior to fillScoreboard().
 ##
 def fillScoreboard():
 
-    global page; global numGames; global awayID; global homeID;
+    global page; global numGames;
+    global awayTeam; global homeTeam; global awayID; global homeID;
 
     # Loop through the games
     for gameNum in range(0,numGames):
@@ -504,7 +505,8 @@ def fillScoreboard():
 ##
 def updateScoreboard():
 
-    global page;
+    global page; global numGames; global gameStatus; global timePeriod
+    global awayScore; global homeScore;
     global periodText; global scoreText; global timeText;
 
     # Loop through the games
@@ -543,40 +545,40 @@ def updateScoreboard():
 ##
 def toggleLamps():
 
-    global page; global sp; global gh; global gw; global lw; global tw;
-    global homeID; global awayID;
-    global hornToggles;
+    global page; global trackedTeams; global goalFlag;
+    global homeID; global awayID; global homeLamp; global awayLamp;
+    
 
     
-    for faveIndex, toggle in enumerate(hornToggles):
-        if trackedTeams[faveIndex] in homeID:
-            if toggle == 1:
-                page.itemconfig(homeLamps[homeID.index(\
-                                trackedTeams[faveIndex])], state='normal')
+    for trackedIndex, flag in enumerate(goalFlag):
+        if trackedTeams[trackedIndex] in homeID:
+            if flag == True:
+                page.itemconfig(homeLamp[homeID.index(\
+                                trackedTeams[trackedIndex])], state='normal')
             else:
-                page.itemconfig(homeLamps[homeID.index(\
-                                trackedTeams[faveIndex])], state='hidden')
-        elif trackedTeams[faveIndex] in awayID:
-            if toggle == 1:
-                page.itemconfig(awayLamps[awayID.index(\
-                                trackedTeams[faveIndex])], state='normal')
+                page.itemconfig(homeLamp[homeID.index(\
+                                trackedTeams[trackedIndex])], state='hidden')
+        elif trackedTeams[trackedIndex] in awayID:
+            if flag == True:
+                page.itemconfig(awayLamp[awayID.index(\
+                                trackedTeams[trackedIndex])], state='normal')
             else:
-                page.itemconfig(awayLamps[awayID.index(\
-                                trackedTeams[faveIndex])], state='hidden')
+                page.itemconfig(awayLamp[awayID.index(\
+                                trackedTeams[trackedIndex])], state='hidden')
     
     return
 
 
 #######################################
 ##
-##  Load Logos
+##  Load Images
 ##
 ##  Loads the team logo images for the purpose of filling the scoreboard.
-##  Should only be used one time. 
+##  Also loads the goal lamp glow. Should only be used one time. 
 ##
-def loadLogos():
+def loadImages():
 
-    global logos; global lampImage;
+    global logos; global lampImage; global thisDir;
 
     logoDirectory = thisDir+'\\Assets\\Images\\'
     logos[ducks] = Tkinter.PhotoImage(file=logoDirectory+'ANA.gif')
@@ -621,7 +623,7 @@ def loadLogos():
 ##
 def loadHorns():
 
-    global horns;
+    global horns; global thisDir;
     
     hornDirectory = thisDir+'\\Assets\\Audio\\'
     horns[avalanche] = hornDirectory+'colorado.wav'
@@ -642,51 +644,3 @@ checkScores()
 
 # Tkinter event loop
 root.mainloop()
-
-
-
-
-
-
-##DUMP
-
-
-#awayLogo = [page.create_image(0,0)]*maxGames
-#homeLogo = [page.create_image(0,0)]*maxGames
-#scoreText = [page.create_text(0,0)]*maxGames
-#periodText = [page.create_text(0,0)]*maxGames
-#timeText = [page.create_text(0,0)]*maxGames
-#
-#del timeText[numGames:]
-
-
-
-
-
-
-
-
-            #if awayID[gameNum] in trackedTeams:
-        #page.create_rectangle(x1,y1,x2,y2,fill='red',width=0)
-
-##    # Check for tracked teams
-##    for whichTeam, teamID in enumerate(trackedTeams):
-##
-##        # Match against the away team
-##        if teamID == awayID[gameNum]:
-##
-##            pass
-##
-##        # Match against the home team
-##        if teamID == homeID[gameNum]:
-##
-##            # Check for a valid goal
-##            if homeScore[whichGame] > trackedScores[whichTeam]:
-##                
-##                # Toggle goal horn
-##                hornToggles[whichTeam] = 1
-##
-##                # Update the tracked score
-##                trackedScores[whichTeam] = homeScore[whichGame]  
-
-    #[]page.create_image(x1,y1, anchor = 'center', state='hidden')
