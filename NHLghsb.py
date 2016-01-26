@@ -13,36 +13,22 @@
 ##
 ## TO DO
 ## -----
-## X Horn playback threading (fixed with winsound.SND_ASYNC)
-## X Flash red for goal: what flashes red? logo outer glow, length 9+ seconds
-##   X Create red outer glows for all teams, just access favorites
-##     X Show image upon horn
-##     X Hide image upon next cycle
-##     X Glow is 15 px larger than logo
-##   X Location of Tkinter initializations
-##   N Does having a first time checkScore function make sense? No, for looping reasons.
+## ! Track all teams for lamps
+## ! Favorite team selection (layout)
+##   \ Method? Denote with graphic change on main screen?
+##     N Different-colored glow
+##     ! Drop shadow (place under lamp to avoid overlay)
+##   - Layout
+##   - Clickable in Tkinter
+##   N Title change, e.g. "tracking COL and PIT" No, length issue
 ##
-## N check window dimensions every update?
-## X Avs goal horn won't play? trackedScores not getting updated b/c teamID change
-## X Update teamIDs with teamIDs image=logos[homeID[gameNum]]
-## X Multiple horns (in winsound, last one takes precedence): favorite only
-##
-## X Delayed game case
-##
-## W OT simplified (observe first)
-## W SO simplified (observe first - need test case)
-##
-## X hornToggle should be boolean (rename to goalFlag)
-## X Clean up variable scopes(global variable lists)
-## X Standardize quotation marks (single or double)
-## X Clean up parsing (use "if in" statements)
-##
-## X Sleep behavior
-## X Scoreboard switchover corner case (OOR)
+## - Configuration file
+##   - How to balance with live selection? ^
+##   - Ignore if configuration file not found
+##     - Simply load and track the teams in the file
+##     - No autosaving if team selections change?
 ##
 ## - Save to executable
-##
-## ! Track all teams for lamps
 ## W Get all team horns
 ##
 
@@ -128,6 +114,9 @@ def checkScores():
     global awayTeam; global homeTeam; global awayID; global homeID;
     global awayScore; global homeScore; global timePeriod; global gameStatus;
 
+
+    # Loop based on the desired refresh rate
+    root.after(refreshRate*1000, checkScores)
     
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
@@ -135,7 +124,6 @@ def checkScores():
         fullText = urllib.urlopen(URL).read()
     except:
         print 'URL OPEN ERROR'
-        root.after(refreshRate*1000, checkScores)
         return
     t1 = time.time();
     if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
@@ -315,9 +303,8 @@ def checkScores():
     
     # No longer a rookie
     firstRun = False
-    
-    # Pause before looping
-    root.after(refreshRate*1000, checkScores)
+
+    return
 
 
 #######################################
