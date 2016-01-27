@@ -14,20 +14,24 @@
 ## TO DO
 ## -----
 ## ! Track all teams for lamps
-## ! Favorite team selection (layout)
-##   \ Method? Denote with graphic change on main screen?
+##   - Rename goal horn teams to favorite teams
+##   - Treat home and away separately?
+##  
+## \ Favorite team selection (layout)
+##   X Denote with graphic change on main screen
 ##     N Different-colored glow
-##     ! Drop shadow (place under lamp to avoid overlay)
+##     X Drop shadow (place under lamp to avoid overlay)
 ##   - Layout
-##   - Clickable in Tkinter
+##   ! Clickable in Tkinter
 ##   N Title change, e.g. "tracking COL and PIT" No, length issue
 ##
 ## - Configuration file
-##   - How to balance with live selection? ^
+##   - No conflict with live selection
 ##   - Ignore if configuration file not found
 ##     - Simply load and track the teams in the file
-##     - No autosaving if team selections change?
+##     - No autosaving if team selections change
 ##
+## - Print to log
 ## - Save to executable
 ## W Get all team horns
 ##
@@ -63,7 +67,7 @@ lightning = 25; mapleleafs = 26; canucks = 27; capitals = 28; jets = 29;
 
 # Tracking information
 trackedTeams = [avalanche, penguins]    #teams to track **
-trackedScores = [0]*len(trackedTeams)   #scores to track
+trackedScores = ['0']*len(trackedTeams) #scores to track
 goalFlag = [False]*len(trackedTeams)    #goal scored flags
 
 # Game information
@@ -85,6 +89,7 @@ columnMax = numTeams/2              #maximum number of games in a column **
 # UX information
 logos = [Tkinter.PhotoImage]*numTeams
 lampImage = Tkinter.PhotoImage
+shadowImage = Tkinter.PhotoImage
 horns = ['']*numTeams
 
 # File information
@@ -129,9 +134,9 @@ def checkScores():
     if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
     
     # Read in a test file
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\nodelay.htm')
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
     #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores5.htm')
-    #fullText = doc.readline()
+    fullText = doc.readline()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -319,13 +324,15 @@ def initializeBoard():
     global page; global numGames; global pageWidth; global pageHeight;
     global columnMax; global awayLogo; global homeLogo;
     global scoreText; global periodText; global timeText;
-    global awayLamp; global homeLamp;
+    global awayLamp; global homeLamp; global awayShadow; global homeShadow;
 
     # Initialize graphic and text elements
     awayLogo = [page.create_image(0,0)]*numGames
     awayLamp = [page.create_image(0,0)]*numGames
+    awayShadow = [page.create_image(0,0)]*numGames
     homeLogo = [page.create_image(0,0)]*numGames
     homeLamp = [page.create_image(0,0)]*numGames
+    homeShadow = [page.create_image(0,0)]*numGames
     scoreText = [page.create_text(0,0)]*numGames
     periodText = [page.create_text(0,0)]*numGames
     timeText = [page.create_text(0,0)]*numGames
@@ -371,9 +378,12 @@ def renderBox(gameNum, row, column):
 
     global page; global sp; global gh; global gw; global lw; global tw;
     global awayLogo; global homeLogo; global awayLamp; global homeLamp;
+    global lampImage; global awayShadow; global homeShadow; global shadowImage;
 
     x1 = sp+(gw+sp+sp)*(column-1)+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
+    awayShadow[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
+    page.itemconfig(awayShadow[gameNum], image=shadowImage)
     awayLamp[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
     page.itemconfig(awayLamp[gameNum], image=lampImage)
     awayLogo[gameNum] = page.create_image(x1, y1, anchor='center')
@@ -388,6 +398,8 @@ def renderBox(gameNum, row, column):
 
     x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
+    homeShadow[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
+    page.itemconfig(homeShadow[gameNum], image=shadowImage)
     homeLamp[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
     page.itemconfig(homeLamp[gameNum], image=lampImage)
     homeLogo[gameNum] = page.create_image(x1, y1, anchor='center')
@@ -408,6 +420,7 @@ def fillScoreboard():
 
     global page; global numGames;
     global awayTeam; global homeTeam; global awayID; global homeID;
+    global trackedTeams; global awayShadow; global homeShadow; #Remove after TODO
 
     # Loop through the games
     for gameNum in range(0,numGames):
@@ -478,6 +491,14 @@ def fillScoreboard():
         elif homeTeam[gameNum] == 'Winnipeg': homeID[gameNum] = jets
         page.itemconfig(homeLogo[gameNum], image=logos[homeID[gameNum]])      
 
+        # TODO: move to a separate function that checks once every iteration
+        if awayID[gameNum] in trackedTeams:
+            print 'yup'
+            page.itemconfig(awayShadow[gameNum], state='normal')
+        elif homeID[gameNum] in trackedTeams:
+            print 'yup'
+            page.itemconfig(homeShadow[gameNum], state='normal')
+
     # Debug text
     print 'Scoreboard filled'
     
@@ -538,9 +559,7 @@ def toggleLamps():
 
     global page; global trackedTeams; global goalFlag;
     global homeID; global awayID; global homeLamp; global awayLamp;
-    
-
-    
+        
     for trackedIndex, flag in enumerate(goalFlag):
         if trackedTeams[trackedIndex] in homeID:
             if flag == True:
@@ -569,40 +588,41 @@ def toggleLamps():
 ##
 def loadImages():
 
-    global logos; global lampImage; global thisDir;
+    global logos; global lampImage; global shadowImage; global thisDir;
 
-    logoDirectory = thisDir+'\\Assets\\Images\\'
-    logos[ducks] = Tkinter.PhotoImage(file=logoDirectory+'ANA.gif')
-    logos[coyotes] = Tkinter.PhotoImage(file=logoDirectory+'ARI.gif')
-    logos[bruins] = Tkinter.PhotoImage(file=logoDirectory+'BOS.gif')
-    logos[sabres] = Tkinter.PhotoImage(file=logoDirectory+'BUF.gif')
-    logos[flames] = Tkinter.PhotoImage(file=logoDirectory+'CGY.gif')
-    logos[hurricanes] = Tkinter.PhotoImage(file=logoDirectory+'CAR.gif')
-    logos[blackhawks] = Tkinter.PhotoImage(file=logoDirectory+'CHI.gif')
-    logos[avalanche] = Tkinter.PhotoImage(file=logoDirectory+'COL.gif')
-    logos[bluejackets] = Tkinter.PhotoImage(file=logoDirectory+'CBJ.gif')
-    logos[stars] = Tkinter.PhotoImage(file=logoDirectory+'DAL.gif')
-    logos[redwings] = Tkinter.PhotoImage(file=logoDirectory+'DET.gif')
-    logos[oilers] = Tkinter.PhotoImage(file=logoDirectory+'EDM.gif')
-    logos[panthers] = Tkinter.PhotoImage(file=logoDirectory+'FLA.gif')
-    logos[kings] = Tkinter.PhotoImage(file=logoDirectory+'LA.gif')
-    logos[wild] = Tkinter.PhotoImage(file=logoDirectory+'MIN.gif')
-    logos[canadiens] = Tkinter.PhotoImage(file=logoDirectory+'MTL.gif')
-    logos[predators] = Tkinter.PhotoImage(file=logoDirectory+'NSH.gif')
-    logos[devils] = Tkinter.PhotoImage(file=logoDirectory+'NJD.gif')
-    logos[islanders] = Tkinter.PhotoImage(file=logoDirectory+'NYI.gif')
-    logos[rangers] = Tkinter.PhotoImage(file=logoDirectory+'NYR.gif')
-    logos[senators] = Tkinter.PhotoImage(file=logoDirectory+'OTT.gif')
-    logos[flyers] = Tkinter.PhotoImage(file=logoDirectory+'PHI.gif')
-    logos[penguins] = Tkinter.PhotoImage(file=logoDirectory+'PIT.gif')
-    logos[sharks] = Tkinter.PhotoImage(file=logoDirectory+'SJ.gif')
-    logos[blues] = Tkinter.PhotoImage(file=logoDirectory+'STL.gif')
-    logos[lightning] = Tkinter.PhotoImage(file=logoDirectory+'TBL.gif')
-    logos[mapleleafs] = Tkinter.PhotoImage(file=logoDirectory+'TOR.gif')
-    logos[canucks] = Tkinter.PhotoImage(file=logoDirectory+'VAN.gif')
-    logos[capitals] = Tkinter.PhotoImage(file=logoDirectory+'WAS.gif')
-    logos[jets] = Tkinter.PhotoImage(file=logoDirectory+'WIN.gif')
-    lampImage = Tkinter.PhotoImage(file=logoDirectory+'lamp.gif')
+    imageDirectory = thisDir+'\\Assets\\Images\\'
+    logos[ducks] = Tkinter.PhotoImage(file=imageDirectory+'ANA.gif')
+    logos[coyotes] = Tkinter.PhotoImage(file=imageDirectory+'ARI.gif')
+    logos[bruins] = Tkinter.PhotoImage(file=imageDirectory+'BOS.gif')
+    logos[sabres] = Tkinter.PhotoImage(file=imageDirectory+'BUF.gif')
+    logos[flames] = Tkinter.PhotoImage(file=imageDirectory+'CGY.gif')
+    logos[hurricanes] = Tkinter.PhotoImage(file=imageDirectory+'CAR.gif')
+    logos[blackhawks] = Tkinter.PhotoImage(file=imageDirectory+'CHI.gif')
+    logos[avalanche] = Tkinter.PhotoImage(file=imageDirectory+'COL.gif')
+    logos[bluejackets] = Tkinter.PhotoImage(file=imageDirectory+'CBJ.gif')
+    logos[stars] = Tkinter.PhotoImage(file=imageDirectory+'DAL.gif')
+    logos[redwings] = Tkinter.PhotoImage(file=imageDirectory+'DET.gif')
+    logos[oilers] = Tkinter.PhotoImage(file=imageDirectory+'EDM.gif')
+    logos[panthers] = Tkinter.PhotoImage(file=imageDirectory+'FLA.gif')
+    logos[kings] = Tkinter.PhotoImage(file=imageDirectory+'LA.gif')
+    logos[wild] = Tkinter.PhotoImage(file=imageDirectory+'MIN.gif')
+    logos[canadiens] = Tkinter.PhotoImage(file=imageDirectory+'MTL.gif')
+    logos[predators] = Tkinter.PhotoImage(file=imageDirectory+'NSH.gif')
+    logos[devils] = Tkinter.PhotoImage(file=imageDirectory+'NJD.gif')
+    logos[islanders] = Tkinter.PhotoImage(file=imageDirectory+'NYI.gif')
+    logos[rangers] = Tkinter.PhotoImage(file=imageDirectory+'NYR.gif')
+    logos[senators] = Tkinter.PhotoImage(file=imageDirectory+'OTT.gif')
+    logos[flyers] = Tkinter.PhotoImage(file=imageDirectory+'PHI.gif')
+    logos[penguins] = Tkinter.PhotoImage(file=imageDirectory+'PIT.gif')
+    logos[sharks] = Tkinter.PhotoImage(file=imageDirectory+'SJ.gif')
+    logos[blues] = Tkinter.PhotoImage(file=imageDirectory+'STL.gif')
+    logos[lightning] = Tkinter.PhotoImage(file=imageDirectory+'TBL.gif')
+    logos[mapleleafs] = Tkinter.PhotoImage(file=imageDirectory+'TOR.gif')
+    logos[canucks] = Tkinter.PhotoImage(file=imageDirectory+'VAN.gif')
+    logos[capitals] = Tkinter.PhotoImage(file=imageDirectory+'WAS.gif')
+    logos[jets] = Tkinter.PhotoImage(file=imageDirectory+'WIN.gif')
+    lampImage = Tkinter.PhotoImage(file=imageDirectory+'lamp.gif')
+    shadowImage = Tkinter.PhotoImage(file=imageDirectory+'shadow.gif')
     
 
 #######################################
