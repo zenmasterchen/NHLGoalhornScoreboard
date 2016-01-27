@@ -13,9 +13,9 @@
 ##
 ## TO DO
 ## -----
-## ! Track all teams for lamps
-##   - Rename goal horn teams to favorite teams
-##   - Treat home and away separately?
+## X Track all teams for lamps
+##   \ Rename goal horn teams to favorite teams
+##   X Treat home and away separately
 ##  
 ## \ Favorite team selection (layout)
 ##   X Denote with graphic change on main screen
@@ -23,6 +23,8 @@
 ##     X Drop shadow (place under lamp to avoid overlay)
 ##   - Layout
 ##   ! Clickable in Tkinter
+##     - Tkinter button
+##     - Bind
 ##   N Title change, e.g. "tracking COL and PIT" No, length issue
 ##
 ## - Configuration file
@@ -73,8 +75,8 @@ goalFlag = [False]*len(trackedTeams)    #goal scored flags
 # Game information
 numGames = 0 #timePeriod, gameStatus
 #scoreText, periodText, timeText
-#awayTeam, awayID, awayScore, awayLogo, awayLamps
-#homeTeam, homeID, homeScore, homeLogo, homeLamps
+#awayTeam, awayID, awayScore, awayFlag, awayLogo, awayLamps, awayShadow
+#homeTeam, homeID, homeScore, homeFlag, homeLogo, homeLamps, homeShadow
 
 # Display dimensions and settings
 pageWidth = 0                       #window width
@@ -118,20 +120,21 @@ def checkScores():
     global trackedTeams; global trackedScores; global goalFlag; global horns;
     global awayTeam; global homeTeam; global awayID; global homeID;
     global awayScore; global homeScore; global timePeriod; global gameStatus;
+    global awayFlag; global homeFlag;
 
 
     # Loop based on the desired refresh rate
     root.after(refreshRate*1000, checkScores)
     
     # Read in the raw NHL scores information from the ESPN feed
-    t0 = time.time()
-    try:
-        fullText = urllib.urlopen(URL).read()
-    except:
-        print 'URL OPEN ERROR'
-        return
-    t1 = time.time();
-    if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
+##    t0 = time.time()
+##    try:
+##        fullText = urllib.urlopen(URL).read()
+##    except:
+##        print 'URL OPEN ERROR'
+##        return
+##    t1 = time.time();
+##    if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
     
     # Read in a test file
     doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
@@ -152,10 +155,12 @@ def checkScores():
         homeTeam = ['']*numGames
         awayID = [-1]*numGames
         homeID = [-1]*numGames    
-        awayScore = [-1]*numGames
-        homeScore = [-1]*numGames
+        awayScore = ['-1']*numGames #CHANGE TO '0'?
+        homeScore = ['-1']*numGames #CHANGE TO '0'?
+        awayFlag = [False]*numGames #NEW
+        homeFlag = [False]*numGames #NEW  
         timePeriod = ['']*numGames
-        gameStatus = [-1]*numGames
+        gameStatus = [-1]*numGames          
         
     # Loop through the games
     for index, game in enumerate(gamesArray):
@@ -216,12 +221,18 @@ def checkScores():
         if 'AM ET' not in game and 'PM ET' not in game and 'DELAY' not in game:
             awayTeam[index] = game[:game.find(' ')]
             game = game[game.find(' ')+1:]
-            awayScore[index] = game[:game.find(' ')]
+            newScore = game[:game.find(' ')]
+            if newScore > awayScore[index] and not firstRun:
+                awayFlag[index] = True
+            awayScore[index] = newScore
             game = game[game.find(' ')+2:]
 
             homeTeam[index] = game[:game.find(' ')]
             game = game[game.find(' ')+1:]
-            homeScore[index] = game[:game.find(' ')]
+            newScore = game[:game.find(' ')]
+            if newScore > homeScore[index] and not firstRun:
+                homeFlag[index] = True
+            homeScore[index] = newScore
             game = game[game.find(' ')+1:]        
             timePeriod[index] = game[1:len(game)-1]
 
@@ -252,7 +263,7 @@ def checkScores():
             timePeriod[index] = game[1:len(game)-1]
                     
             gameStatus[index] = 0
-    
+
     # Apply appropriate changes to the scoreboard display        
     if firstRun == True:    
         loadImages()
@@ -303,7 +314,6 @@ def checkScores():
                 print 'Goal scored!'
                 winsound.PlaySound(horns[trackedTeams[trackedIndex]], \
                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
-                toggleLamps()
             goalFlag = [False]*len(goalFlag)
     
     # No longer a rookie
@@ -493,10 +503,10 @@ def fillScoreboard():
 
         # TODO: move to a separate function that checks once every iteration
         if awayID[gameNum] in trackedTeams:
-            print 'yup'
+            #print 'yup'
             page.itemconfig(awayShadow[gameNum], state='normal')
         elif homeID[gameNum] in trackedTeams:
-            print 'yup'
+            #print 'yup'
             page.itemconfig(homeShadow[gameNum], state='normal')
 
     # Debug text
@@ -557,25 +567,28 @@ def updateScoreboard():
 ##
 def toggleLamps():
 
-    global page; global trackedTeams; global goalFlag;
-    global homeID; global awayID; global homeLamp; global awayLamp;
+    global page; global numGames
+    global awayFlag; global homeFlag; global homeLamp; global awayLamp; 
+
+    # Loop through the goal scored flags
+    for index, flag in enumerate(awayFlag):
+        if flag == True:
+            page.itemconfig(awayLamp[index], state='normal')
+            print 'Goal scored by', awayTeam[index]
+        else:
+            page.itemconfig(awayLamp[index], state='hidden')
+
+    for index, flag in enumerate(homeFlag):
+        if flag == True:
+            page.itemconfig(homeLamp[index], state='normal')
+            print 'Goal scored by', homeTeam[index]
+        else:
+            page.itemconfig(homeLamp[index], state='hidden')
+
+    # Reset the goal scored flags
+    awayFlag = [False]*numGames
+    homeFlag = [False]*numGames
         
-    for trackedIndex, flag in enumerate(goalFlag):
-        if trackedTeams[trackedIndex] in homeID:
-            if flag == True:
-                page.itemconfig(homeLamp[homeID.index(\
-                                trackedTeams[trackedIndex])], state='normal')
-            else:
-                page.itemconfig(homeLamp[homeID.index(\
-                                trackedTeams[trackedIndex])], state='hidden')
-        elif trackedTeams[trackedIndex] in awayID:
-            if flag == True:
-                page.itemconfig(awayLamp[awayID.index(\
-                                trackedTeams[trackedIndex])], state='normal')
-            else:
-                page.itemconfig(awayLamp[awayID.index(\
-                                trackedTeams[trackedIndex])], state='hidden')
-    
     return
 
 
