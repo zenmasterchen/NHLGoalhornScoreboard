@@ -25,7 +25,7 @@
 ##     X Just treat as firstRun
 ## X All-Star bug
 ## W Simplify OT and SO to "IN OT" and "IN SO"
-## \ Ditch home/away split lists
+## X Ditch home/away split lists
 ##   X away = 2*gameNum, home = 2*gameNum+1
 ##   X New variables
 ##     X teams
@@ -37,7 +37,8 @@
 ##     X shadows
 ##   X Lamps broken
 ##   X Horns broken (Avs not tracked)
-##   - Check scopes
+##   X Check scopes
+## N Goal scored appears before updated
 ##
 ## \ Favorite team selection (layout)
 ##   X Denote with graphic change on main screen
@@ -91,7 +92,8 @@ hurricanes = 5; blackhawks = 6; avalanche = 7; bluejackets = 8; stars = 9;
 redwings = 10; oilers = 11; panthers = 12; kings = 13; wild = 14;
 canadiens = 15; predators = 16; devils = 17; islanders = 18; rangers = 19;
 senators = 20; flyers = 21; penguins = 22; sharks = 23; blues = 24;
-lightning = 25; mapleleafs = 26; canucks = 27; capitals = 28; jets = 29;
+lightning = 25; mapleleafs = 26; canucks = 27; jets = 28; capitals = 29;
+NHL = 30;
 
 # Tracking information
 favorites = [False]*numTeams #NEW
@@ -120,7 +122,7 @@ sh = 128                            #splash screen height
 columnMax = numTeams/2              #maximum number of games in a column **
 
 # UX information
-logoImages = [Tkinter.PhotoImage]*numTeams
+logoImages = [Tkinter.PhotoImage]*(numTeams+1)
 lampImage = Tkinter.PhotoImage
 shadowImage = Tkinter.PhotoImage
 splashImage = Tkinter.PhotoImage
@@ -150,9 +152,8 @@ def checkScores():
 
     global URL; global page; global refreshRate; global firstRun; global numGames;
     global trackedTeams; global trackedScores; global goalFlag; global horns;
-    global awayTeam; global homeTeam; global awayID; global homeID;
-    global awayScore; global homeScore; global timePeriod; global gameStatus;
-    global awayFlag; global homeFlag;
+
+    global timePeriod; global gameStatus;
     global tLast; global tTimeout
 
     global teams; global teamIDs; global scores; global goalFlags;
@@ -200,22 +201,12 @@ def checkScores():
 
     # Initialize arrays to store game information
     if firstRun == True:
-##        awayTeam = ['']*numGames
-##        homeTeam = ['']*numGames
-##        awayID = [-1]*numGames
-##        homeID = [-1]*numGames    
-##        awayScore = ['0']*numGames
-##        homeScore = ['0']*numGames
-##        awayFlag = [False]*numGames
-##        homeFlag = [False]*numGames
+        teams = ['']*numGames*2
+        teamIDs = ['-1']*numGames*2
+        scores = ['0']*numGames*2
+        goalFlags = [False]*numGames*2
         timePeriod = ['']*numGames
-        gameStatus = [0]*numGames
-
-        teams = ['']*numGames*2 #NOSPLIT
-        teamIDs = ['']*numGames*2 #NOSPLIT
-        scores = ['0']*numGames*2 #NOSPLIT
-        goalFlags = [False]*numGames*2 #NOSPLIT
-        
+        gameStatus = [0]*numGames      
         
     # Loop through the games
     for index, game in enumerate(gamesArray):
@@ -274,30 +265,23 @@ def checkScores():
 
         # Parse the shit out of games in progress (1-5) or finished (9)
         if 'AM ET' not in game and 'PM ET' not in game and 'DELAY' not in game:
-##            awayTeam[index] = game[:game.find(' ')]
             teams[index*2] = game[:game.find(' ')]
             game = game[game.find(' ')+1:]
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2] and not firstRun:
-##                awayFlag[index] = True
                 goalFlags[index*2] = True
-##            awayScore[index] = newScore
             scores[index*2] = newScore
             game = game[game.find(' ')+2:]
 
-##            homeTeam[index] = game[:game.find(' ')]
             teams[index*2+1] = game[:game.find(' ')]
             game = game[game.find(' ')+1:]
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2+1] and not firstRun:
-##                homeFlag[index] = True
                 goalFlags[index*2+1] = True
-##            homeScore[index] = newScore
             scores[index*2+1] = newScore
             
             game = game[game.find(' ')+1:]        
-            timePeriod[index] = game[1:len(game)-1]
-            
+            timePeriod[index] = game[1:len(game)-1]            
 
             # Detect period
             if '1ST' in game:
@@ -307,13 +291,11 @@ def checkScores():
             elif '3RD' in game:
                 gameStatus[index] = 3
             if '2ND OT' in game:
-                print timePeriod[index]
                 timePeriod[index] = timePeriod[index].replace('2ND OT','SO')
                 timePeriod[index] = timePeriod[index].replace('- SO','(SO)')
                 #timePeriod[index] = 'IN SO' #Can't do it this way because of FINAL
                 gameStatus[index] = 5
             elif 'OT' in game:
-                print timePeriod[index]
                 timePeriod[index] = timePeriod[index].replace('1ST OT','OT')
                 timePeriod[index] = timePeriod[index].replace('- OT','(OT)')
                 #timePeriod[index] = 'IN OT' #Can't do it this way because of FINAL
@@ -323,16 +305,11 @@ def checkScores():
             
         # Parse the shit out of games not yet started(0)
         else:
-##            awayTeam[index] = game[0:game.find(' ')]
-            teams[index*2] = game[0:game.find(' ')]
-            
+            teams[index*2] = game[0:game.find(' ')]            
             game = game[game.find(' ')+4:len(game)]
-##            homeTeam[index] = game[0:game.find(' ')]
-            teams[index*2+1] = game[0:game.find(' ')]
-            
-            game = game[game.find(' ')+1:len(game)]
+            teams[index*2+1] = game[0:game.find(' ')]            
+            game = game[game.find(' ')+1:len(game)]        
             timePeriod[index] = game[1:len(game)-1]
-                    
             gameStatus[index] = 0
 
     # Apply appropriate changes to the scoreboard display        
@@ -402,22 +379,13 @@ def initializeBoard():
 
     global page; global numGames;
     global columnMax; global sp; global gw; global gh;
-    global awayLogo; global homeLogo;
     global scoreText; global periodText; global timeText;
-    global awayLamp; global homeLamp; global awayShadow; global homeShadow;
-
     global teamLogos; global lamps; global shadows;
 
     # Delete existing elements if present
     page.delete('all')
 
     # Initialize graphic and text elements
-##    awayLogo = [page.create_image(0,0)]*numGames
-##    awayLamp = [page.create_image(0,0)]*numGames
-##    awayShadow = [page.create_image(0,0)]*numGames
-##    homeLogo = [page.create_image(0,0)]*numGames
-##    homeLamp = [page.create_image(0,0)]*numGames
-##    homeShadow = [page.create_image(0,0)]*numGames
     scoreText = [page.create_text(0,0)]*numGames
     periodText = [page.create_text(0,0)]*numGames
     timeText = [page.create_text(0,0)]*numGames
@@ -465,25 +433,20 @@ def initializeBoard():
 def renderBox(gameNum, row, column):
 
     global page; global sp; global gh; global gw; global lw; global tw;
-    global awayLogo; global homeLogo; global awayLamp; global homeLamp;
-    global lampImage; global awayShadow; global homeShadow; global shadowImage;
-
     global teamLogos; global lamps; global shadows;
+    global scoreText; global periodText; global timeText;
+    global lampImage; global shadowImage;
 
+    # Away team images
     x1 = sp+(gw+sp+sp)*(column-1)+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
-##    awayShadow[gameNum] = page.create_image(x1, y1, anchor='center', \
-##                                            image=shadowImage, state='hidden')
-##    awayLamp[gameNum] = page.create_image(x1, y1, anchor='center', \
-##                                          image=lampImage, state='hidden')
-##    awayLogo[gameNum] = page.create_image(x1, y1, anchor='center')
-
     shadows[gameNum*2] = page.create_image(x1, y1, anchor='center', \
                                             image=shadowImage, state='hidden')
     lamps[gameNum*2] = page.create_image(x1, y1, anchor='center', \
                                           image=lampImage, state='hidden')
     teamLogos[gameNum*2] = page.create_image(x1, y1, anchor='center')
 
+    # Text
     x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw/2
     y1 = sp+(gh+sp)*(row-1)+15
     scoreText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
@@ -492,14 +455,9 @@ def renderBox(gameNum, row, column):
     y1 = sp+(gh+sp)*(row-1)+gh/2-1
     timeText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
 
+    # Home team images
     x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
-##    homeShadow[gameNum] = page.create_image(x1, y1, anchor='center', \
-##                                            image=shadowImage, state='hidden')
-##    homeLamp[gameNum] = page.create_image(x1, y1, anchor='center', \
-##                                          image=lampImage, state='hidden')
-##    homeLogo[gameNum] = page.create_image(x1, y1, anchor='center')
-
     shadows[gameNum*2+1] = page.create_image(x1, y1, anchor='center', \
                                             image=shadowImage, state='hidden')
     lamps[gameNum*2+1] = page.create_image(x1, y1, anchor='center', \
@@ -520,91 +478,9 @@ def renderBox(gameNum, row, column):
 ##
 def fillScoreboard():
 
-    global page; global numGames;
-    global awayTeam; global homeTeam; global awayID; global homeID;
-    global trackedTeams; global awayShadow; global homeShadow; #Remove after TODO
-
-    global teams; global teamIDs; global teamLogos
-    global teamLogos; global lamps; global shadows;
-
-##    # Loop through the games
-##    for gameNum in range(0,numGames):
-##        
-##        # Display away team logos and names
-##        if awayTeam[gameNum] == 'Anaheim': awayID[gameNum] = ducks
-##        elif awayTeam[gameNum] == 'Arizona': awayID[gameNum] = coyotes                      
-##        elif awayTeam[gameNum] == 'Boston': awayID[gameNum] = bruins
-##        elif awayTeam[gameNum] == 'Buffalo': awayID[gameNum] = sabres
-##        elif awayTeam[gameNum] == 'Calgary': awayID[gameNum] = flames           
-##        elif awayTeam[gameNum] == 'Carolina': awayID[gameNum] = hurricanes 
-##        elif awayTeam[gameNum] == 'Chicago': awayID[gameNum] = blackhawks
-##        elif awayTeam[gameNum] == 'Colorado': awayID[gameNum] = avalanche          
-##        elif awayTeam[gameNum] == 'Columbus': awayID[gameNum] = bluejackets
-##        elif awayTeam[gameNum] == 'Dallas': awayID[gameNum] = stars
-##        elif awayTeam[gameNum] == 'Detroit': awayID[gameNum] = redwings         
-##        elif awayTeam[gameNum] == 'Edmonton': awayID[gameNum] = oilers
-##        elif awayTeam[gameNum] == 'Florida': awayID[gameNum] = panthers
-##        elif awayTeam[gameNum] == 'LosAngeles': awayID[gameNum] = kings         
-##        elif awayTeam[gameNum] == 'Minnesota': awayID[gameNum] = wild
-##        elif awayTeam[gameNum] == 'Montreal': awayID[gameNum] = canadiens
-##        elif awayTeam[gameNum] == 'Nashville': awayID[gameNum] = predators           
-##        elif awayTeam[gameNum] == 'NewJersey': awayID[gameNum] = devils
-##        elif awayTeam[gameNum] == 'NYIslanders': awayID[gameNum] = islanders
-##        elif awayTeam[gameNum] == 'NYRangers': awayID[gameNum] = rangers          
-##        elif awayTeam[gameNum] == 'Ottawa': awayID[gameNum] = senators 
-##        elif awayTeam[gameNum] == 'Philadelphia': awayID[gameNum] = flyers
-##        elif awayTeam[gameNum] == 'Pittsburgh': awayID[gameNum] = penguins
-##        elif awayTeam[gameNum] == 'SanJose': awayID[gameNum] = sharks
-##        elif awayTeam[gameNum] == 'StLouis': awayID[gameNum] = blues         
-##        elif awayTeam[gameNum] == 'TampaBay': awayID[gameNum] = lightning
-##        elif awayTeam[gameNum] == 'Toronto': awayID[gameNum] = mapleleafs
-##        elif awayTeam[gameNum] == 'Vancouver': awayID[gameNum] = canucks       
-##        elif awayTeam[gameNum] == 'Washington': awayID[gameNum] = capitals 
-##        elif awayTeam[gameNum] == 'Winnipeg': awayID[gameNum] = jets
-##        page.itemconfig(awayLogo[gameNum], image=logoImages[awayID[gameNum]])   
-##        
-##        # Display home team logos and names
-##        if homeTeam[gameNum] == 'Anaheim': homeID[gameNum] = ducks
-##        elif homeTeam[gameNum] == 'Arizona': homeID[gameNum] = coyotes           
-##        elif homeTeam[gameNum] == 'Boston': homeID[gameNum] = bruins
-##        elif homeTeam[gameNum] == 'Buffalo': homeID[gameNum] = sabres
-##        elif homeTeam[gameNum] == 'Calgary': homeID[gameNum] = flames      
-##        elif homeTeam[gameNum] == 'Carolina': homeID[gameNum] = hurricanes
-##        elif homeTeam[gameNum] == 'Chicago': homeID[gameNum] = blackhawks
-##        elif homeTeam[gameNum] == 'Colorado': homeID[gameNum] = avalanche         
-##        elif homeTeam[gameNum] == 'Columbus': homeID[gameNum] = bluejackets  
-##        elif homeTeam[gameNum] == 'Dallas': homeID[gameNum] = stars
-##        elif homeTeam[gameNum] == 'Detroit': homeID[gameNum] = redwings         
-##        elif homeTeam[gameNum] == 'Edmonton': homeID[gameNum] = oilers
-##        elif homeTeam[gameNum] == 'Florida': homeID[gameNum] = panthers
-##        elif homeTeam[gameNum] == 'LosAngeles': homeID[gameNum] = kings      
-##        elif homeTeam[gameNum] == 'Minnesota': homeID[gameNum] = wild
-##        elif homeTeam[gameNum] == 'Montreal': homeID[gameNum] = canadiens
-##        elif homeTeam[gameNum] == 'Nashville': homeID[gameNum] = predators          
-##        elif homeTeam[gameNum] == 'NewJersey': homeID[gameNum] = devils
-##        elif homeTeam[gameNum] == 'NYIslanders': homeID[gameNum] = islanders
-##        elif homeTeam[gameNum] == 'NYRangers': homeID[gameNum] = rangers         
-##        elif homeTeam[gameNum] == 'Ottawa': homeID[gameNum] = senators        
-##        elif homeTeam[gameNum] == 'Philadelphia': homeID[gameNum] = flyers     
-##        elif homeTeam[gameNum] == 'Pittsburgh': homeID[gameNum] = penguins
-##        elif homeTeam[gameNum] == 'SanJose': homeID[gameNum] = sharks
-##        elif homeTeam[gameNum] == 'StLouis': homeID[gameNum] = blues   
-##        elif homeTeam[gameNum] == 'TampaBay': homeID[gameNum] = lightning
-##        elif homeTeam[gameNum] == 'Toronto': homeID[gameNum] = mapleleafs
-##        elif homeTeam[gameNum] == 'Vancouver': homeID[gameNum] = canucks       
-##        elif homeTeam[gameNum] == 'Washington': homeID[gameNum] = capitals
-##        elif homeTeam[gameNum] == 'Winnipeg': homeID[gameNum] = jets
-##        page.itemconfig(homeLogo[gameNum], image=logoImages[homeID[gameNum]])      
-##
-##        # TODO: move to a separate function that checks once every iteration
-##        if awayID[gameNum] in trackedTeams:
-##            #print 'yup'
-##            page.itemconfig(awayShadow[gameNum], state='normal')
-##        elif homeID[gameNum] in trackedTeams:
-##            #print 'yup'
-##            page.itemconfig(homeShadow[gameNum], state='normal')
-
-
+    global page; global numGames; global teams; global trackedTeams;
+    global teamIDs; global teamLogos; global lamps; global shadows;
+    global logoImages
 
     # Loop through the games to match the teams
     for index, team in enumerate(teams):
@@ -638,6 +514,7 @@ def fillScoreboard():
         elif team == 'Vancouver': teamIDs[index] = canucks       
         elif team == 'Washington': teamIDs[index] = capitals 
         elif team == 'Winnipeg': teamIDs[index] = jets
+        else: teamIDs[index] = NHL
         page.itemconfig(teamLogos[index], image=logoImages[teamIDs[index]])
 
         # TODO: move to a separate function that checks once every iteration
@@ -664,10 +541,7 @@ def fillScoreboard():
 def updateScoreboard():
 
     global page; global numGames; global gameStatus; global timePeriod
-    global awayScore; global homeScore;
-    global periodText; global scoreText; global timeText;
-
-    global scores
+    global periodText; global scoreText; global timeText; global scores;
 
     # Loop through the games
     for gameNum in range(0,numGames):
@@ -705,27 +579,9 @@ def updateScoreboard():
 ##
 def toggleLamps():
 
-    global page; global numGames
-    global awayFlag; global homeFlag; global homeLamp; global awayLamp;
-
-    global goalFlags; global teamLogos; global lamps; global shadows;
+    global page; global goalFlags; global teams; global lamps;
 
     # Loop through the goal scored flags
-##    for index, flag in enumerate(awayFlag):
-##        if flag == True:
-##            page.itemconfig(awayLamp[index], state='normal')
-##            print 'Goal scored by', awayTeam[index]
-##        else:
-##            page.itemconfig(awayLamp[index], state='hidden')
-##
-##    for index, flag in enumerate(homeFlag):
-##        if flag == True:
-##            page.itemconfig(homeLamp[index], state='normal')
-##            print 'Goal scored by', homeTeam[index]
-##        else:
-##            page.itemconfig(homeLamp[index], state='hidden')
-
-
     for index, flag in enumerate(goalFlags):
         if flag == True:
             page.itemconfig(lamps[index], state='normal')
@@ -733,11 +589,7 @@ def toggleLamps():
         else:
             page.itemconfig(lamps[index], state='hidden')
 
-
-    # Reset the goal scored flags
-##    awayFlag = [False]*numGames
-##    homeFlag = [False]*numGames
-
+    # Reset
     goalFlags = [False]*numGames*2
         
     return
@@ -752,7 +604,7 @@ def toggleLamps():
 def splashScreen():
 
     global page; global sp; global sw; global sh;
-    global splashImage; global splash;
+    global splash; global splashImage;
 
     # Delete existing elements
     page.delete('all')
@@ -800,7 +652,7 @@ def loadImages():
     logoImages[redwings] = Tkinter.PhotoImage(file=imageDirectory+'DET.gif')
     logoImages[oilers] = Tkinter.PhotoImage(file=imageDirectory+'EDM.gif')
     logoImages[panthers] = Tkinter.PhotoImage(file=imageDirectory+'FLA.gif')
-    logoImages[kings] = Tkinter.PhotoImage(file=imageDirectory+'LA.gif')
+    logoImages[kings] = Tkinter.PhotoImage(file=imageDirectory+'LAK.gif')
     logoImages[wild] = Tkinter.PhotoImage(file=imageDirectory+'MIN.gif')
     logoImages[canadiens] = Tkinter.PhotoImage(file=imageDirectory+'MTL.gif')
     logoImages[predators] = Tkinter.PhotoImage(file=imageDirectory+'NSH.gif')
@@ -810,15 +662,16 @@ def loadImages():
     logoImages[senators] = Tkinter.PhotoImage(file=imageDirectory+'OTT.gif')
     logoImages[flyers] = Tkinter.PhotoImage(file=imageDirectory+'PHI.gif')
     logoImages[penguins] = Tkinter.PhotoImage(file=imageDirectory+'PIT.gif')
-    logoImages[sharks] = Tkinter.PhotoImage(file=imageDirectory+'SJ.gif')
+    logoImages[sharks] = Tkinter.PhotoImage(file=imageDirectory+'SJS.gif')
     logoImages[blues] = Tkinter.PhotoImage(file=imageDirectory+'STL.gif')
     logoImages[lightning] = Tkinter.PhotoImage(file=imageDirectory+'TBL.gif')
     logoImages[canucks] = Tkinter.PhotoImage(file=imageDirectory+'VAN.gif')
-    logoImages[capitals] = Tkinter.PhotoImage(file=imageDirectory+'WAS.gif')
-    logoImages[jets] = Tkinter.PhotoImage(file=imageDirectory+'WIN.gif')
+    logoImages[jets] = Tkinter.PhotoImage(file=imageDirectory+'WPG.gif')
+    logoImages[capitals] = Tkinter.PhotoImage(file=imageDirectory+'WSH.gif')
+    logoImages[NHL] = Tkinter.PhotoImage(file=imageDirectory+'NHL.gif')
     lampImage = Tkinter.PhotoImage(file=imageDirectory+'lamp.gif')
     shadowImage = Tkinter.PhotoImage(file=imageDirectory+'shadow.gif')
-    splashImage = Tkinter.PhotoImage(file=imageDirectory+'NHL.gif')
+    splashImage = Tkinter.PhotoImage(file=imageDirectory+'splash.gif')
     
 
 #######################################
@@ -835,7 +688,6 @@ def loadHorns():
     hornDirectory = thisDir+'\\Assets\\Audio\\'
     horns[avalanche] = hornDirectory+'colorado.wav'
     horns[penguins] = hornDirectory+'pittsburgh.wav'
-    #add more
 
 
 ####################################  MAIN  ####################################
@@ -843,7 +695,7 @@ def loadHorns():
 # Tkinter root widget
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
-root.iconbitmap('icon.ico')
+root.iconbitmap(thisDir+'\\Assets\\Images\\icon.ico')
 page = Tkinter.Canvas(root, highlightthickness=0, background='white')
      
 # Begin checking for scores
