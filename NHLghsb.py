@@ -14,18 +14,34 @@
 ## TO DO
 ## -----
 ## X Track all teams for lamps
-##   \ Rename goal horn teams to favorite teams
+##   X Rename goal horn teams to favorite teams
 ##   X Treat home and away separately
-##  
+##
+## X Lamp bugs (ha.)
+##   X Lamps upon game start: can't replicate
+##   X Lamps upon total switchover? check
+##   X Mute lamps and horns upon return from sleep
+##     X Threshold: 30 minutes?
+##     X Just treat as firstRun
+## X All-Star bug
+## ! Simplify OT and SO to "IN OT" and "IN SO"
+## ! Ditch home/away split lists
+##   - home = 2*gameNum
+##   - away = 2*gameNum+1
+##
 ## \ Favorite team selection (layout)
 ##   X Denote with graphic change on main screen
 ##     N Different-colored glow
 ##     X Drop shadow (place under lamp to avoid overlay)
-##   - Layout
-##   ! Clickable in Tkinter
-##     - Tkinter button
-##     - Bind
+##   N New layout for selection screen
+##   \ Clickable in Tkinter
+##     X Tkinter button or bind: button
+##     \ What function to run upon click?!
+##       - toggleFave(ID)
+##       - toggles favorite[ID] to True/False
+##       - changes visibility of the shadow accordingly
 ##   N Title change, e.g. "tracking COL and PIT" No, length issue
+##   - Move initial shadow setting away from fillScoreboard
 ##
 ## - Configuration file
 ##   - No conflict with live selection
@@ -33,7 +49,7 @@
 ##     - Simply load and track the teams in the file
 ##     - No autosaving if team selections change
 ##
-## - Print to log
+## - Print to log with logging instead of console
 ## - Save to executable
 ## W Get all team horns
 ##
@@ -68,9 +84,12 @@ senators = 20; flyers = 21; penguins = 22; sharks = 23; blues = 24;
 lightning = 25; mapleleafs = 26; canucks = 27; capitals = 28; jets = 29;
 
 # Tracking information
+favorite = [False]*numTeams #NEW
 trackedTeams = [avalanche, penguins]    #teams to track **
 trackedScores = ['0']*len(trackedTeams) #scores to track
 goalFlag = [False]*len(trackedTeams)    #goal scored flags
+tLast = 0 #NEW
+tTimeout = 30 #NEW, in minutes **
 
 # Game information
 numGames = 0 #timePeriod, gameStatus
@@ -79,19 +98,20 @@ numGames = 0 #timePeriod, gameStatus
 #homeTeam, homeID, homeScore, homeFlag, homeLogo, homeLamps, homeShadow
 
 # Display dimensions and settings
-pageWidth = 0                       #window width
-pageHeight = 0                      #window height
 sp = 20                             #spacer
 gh = 50                             #game height, inner
 gw = 310                            #game width, inner
 lw = 100                            #logo width
 tw = 70                             #text width
+sw = 128                            #splash screen width
+sh = 128                            #splash screen height
 columnMax = numTeams/2              #maximum number of games in a column **
 
 # UX information
 logos = [Tkinter.PhotoImage]*numTeams
 lampImage = Tkinter.PhotoImage
 shadowImage = Tkinter.PhotoImage
+splashImage = Tkinter.PhotoImage
 horns = ['']*numTeams
 
 # File information
@@ -121,32 +141,47 @@ def checkScores():
     global awayTeam; global homeTeam; global awayID; global homeID;
     global awayScore; global homeScore; global timePeriod; global gameStatus;
     global awayFlag; global homeFlag;
+    global tLast; global tTimeout
 
+
+    # Load assets
+    if firstRun == True:    
+        loadImages()
+        loadHorns()
 
     # Loop based on the desired refresh rate
     root.after(refreshRate*1000, checkScores)
+
+    # Treat this as a first run if 
+    if not firstRun and time.time()-tLast > tTimeout*60:
+        print 'TIMEOUT - STARTING OVER'
+        firstRun = True
     
     # Read in the raw NHL scores information from the ESPN feed
-##    t0 = time.time()
-##    try:
-##        fullText = urllib.urlopen(URL).read()
-##    except:
-##        print 'URL OPEN ERROR'
-##        return
-##    t1 = time.time();
-##    if t1-t0 > 3: print 'URL OPEN LAG =',t1-t0,'SECONDS'
+    t0 = time.time()
+    try:
+        fullText = urllib.urlopen(URL).read()
+    except:
+        print 'URL OPEN ERROR'
+        return
+    t1 = time.time()
+    if t1-t0 > 3: print 'URL OPEN LAG =',round(t1-t0,3),'SECONDS'
+    tLast = t1
     
-    # Read in a test file
-    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
-    #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores5.htm')
-    fullText = doc.readline()
+    # Read in a test file if in development (comment out otherwise)
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores5.htm')
+    #fullText = doc.readline()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
+    if len(gamesArray) == 0:
+        print 'No game(s) detected'
+        numGames = 0
+        splashScreen()
+        return
     if len(gamesArray) != numGames and firstRun == False:
         print 'New game(s) detected'
         firstRun = True
-        page.delete('all')
     numGames = len(gamesArray)        
 
     # Initialize arrays to store game information
@@ -155,12 +190,18 @@ def checkScores():
         homeTeam = ['']*numGames
         awayID = [-1]*numGames
         homeID = [-1]*numGames    
-        awayScore = ['-1']*numGames #CHANGE TO '0'?
-        homeScore = ['-1']*numGames #CHANGE TO '0'?
+        awayScore = ['0']*numGames
+        homeScore = ['0']*numGames
         awayFlag = [False]*numGames #NEW
         homeFlag = [False]*numGames #NEW  
         timePeriod = ['']*numGames
-        gameStatus = [-1]*numGames          
+        gameStatus = [0]*numGames
+
+        #teams = ['']*numGames*2
+        #IDs = ['']*numGames*2
+        #scores = ['0']*numGames*2
+        #goalFlags = [False]*numGames*2
+        
         
     # Loop through the games
     for index, game in enumerate(gamesArray):
@@ -266,8 +307,6 @@ def checkScores():
 
     # Apply appropriate changes to the scoreboard display        
     if firstRun == True:    
-        loadImages()
-        loadHorns()
         initializeBoard()
         fillScoreboard()
     else:
@@ -331,10 +370,14 @@ def checkScores():
 ##
 def initializeBoard():
 
-    global page; global numGames; global pageWidth; global pageHeight;
-    global columnMax; global awayLogo; global homeLogo;
+    global page; global numGames;
+    global columnMax; global sp; global gw; global gh;
+    global awayLogo; global homeLogo;
     global scoreText; global periodText; global timeText;
     global awayLamp; global homeLamp; global awayShadow; global homeShadow;
+
+    # Delete existing elements if present
+    page.delete('all')
 
     # Initialize graphic and text elements
     awayLogo = [page.create_image(0,0)]*numGames
@@ -355,8 +398,7 @@ def initializeBoard():
 
     # Create an appropriate layout    
     pageWidth = (sp + gw + sp) * numColumns
-    pageHeight = sp + (gh+sp)*round(float(numGames)/numColumns)
-    
+    pageHeight = sp + (gh+sp)*round(float(numGames)/numColumns)  
     page.config(width=pageWidth, height=pageHeight)
 
     # Draw the boxes
@@ -392,10 +434,10 @@ def renderBox(gameNum, row, column):
 
     x1 = sp+(gw+sp+sp)*(column-1)+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
-    awayShadow[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
-    page.itemconfig(awayShadow[gameNum], image=shadowImage)
-    awayLamp[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
-    page.itemconfig(awayLamp[gameNum], image=lampImage)
+    awayShadow[gameNum] = page.create_image(x1, y1, anchor='center', \
+                                            image=shadowImage, state='hidden')
+    awayLamp[gameNum] = page.create_image(x1, y1, anchor='center', \
+                                          image=lampImage, state='hidden')
     awayLogo[gameNum] = page.create_image(x1, y1, anchor='center')
 
     x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw/2
@@ -408,10 +450,10 @@ def renderBox(gameNum, row, column):
 
     x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
-    homeShadow[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
-    page.itemconfig(homeShadow[gameNum], image=shadowImage)
-    homeLamp[gameNum] = page.create_image(x1, y1, anchor='center', state='hidden')
-    page.itemconfig(homeLamp[gameNum], image=lampImage)
+    homeShadow[gameNum] = page.create_image(x1, y1, anchor='center', \
+                                            image=shadowImage, state='hidden')
+    homeLamp[gameNum] = page.create_image(x1, y1, anchor='center', \
+                                          image=lampImage, state='hidden')
     homeLogo[gameNum] = page.create_image(x1, y1, anchor='center')
     
     return
@@ -594,6 +636,37 @@ def toggleLamps():
 
 #######################################
 ##
+##  Splash Screen
+##
+##  Displays the NHL Goal Horn Scoreboard logo
+##
+def splashScreen():
+
+    global page; global sp; global sw; global sh;
+    global splashImage; global splash;
+
+    # Delete existing elements
+    page.delete('all')
+
+    # Create an appropriate layout    
+    pageWidth = sp + sw + sp
+    pageHeight = sp + sh + sp
+    page.config(width=pageWidth, height=pageHeight)
+
+    # Draw the logo
+    x1 = sp+sw/2
+    y1 = sp+sh/2
+    splash = page.create_image(x1, y1, anchor='center', image=splashImage)
+    page.pack()
+    
+    # Debug text
+    print 'Splash screen displayed'
+
+    return
+
+
+#######################################
+##
 ##  Load Images
 ##
 ##  Loads the team logo images for the purpose of filling the scoreboard.
@@ -601,7 +674,8 @@ def toggleLamps():
 ##
 def loadImages():
 
-    global logos; global lampImage; global shadowImage; global thisDir;
+    global thisDir;
+    global logos; global lampImage; global shadowImage; global splashImage;
 
     imageDirectory = thisDir+'\\Assets\\Images\\'
     logos[ducks] = Tkinter.PhotoImage(file=imageDirectory+'ANA.gif')
@@ -636,6 +710,7 @@ def loadImages():
     logos[jets] = Tkinter.PhotoImage(file=imageDirectory+'WIN.gif')
     lampImage = Tkinter.PhotoImage(file=imageDirectory+'lamp.gif')
     shadowImage = Tkinter.PhotoImage(file=imageDirectory+'shadow.gif')
+    splashImage = Tkinter.PhotoImage(file=imageDirectory+'NHL.gif')
     
 
 #######################################
