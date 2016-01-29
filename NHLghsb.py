@@ -46,13 +46,18 @@
 ##     X Drop shadow (place under lamp to avoid overlay)
 ##   N New layout for selection screen
 ##   \ Clickable in Tkinter
-##     X Tkinter button or bind: button
-##     \ What function to run upon click?!
-##       - toggleFave(ID)
+##     N Tkinter button: transparency issue
+##     N Tkinter bind: can't bind to image, can't place transparent canvas
+##     X Get mouse position by binding to root
+##     ! Detect location upon click: TIME FOR SOME DRAWING AND MATH?!
+##       - Row = game
+##       - Column = away/home
+##     - Animate 1-pixel move down upon single click?
+##     - Upon click or click release, run toggleFave(ID)
 ##       - toggles favorite[ID] to True/False
 ##       - changes visibility of the shadow accordingly
 ##   N Title change, e.g. "tracking COL and PIT" No, length issue
-##   - Move initial shadow setting away from fillScoreboard
+##   - Move initial shadow setting away from fillScoreboard (updateScoreboard?)
 ##
 ## - Configuration file
 ##   - No conflict with live selection
@@ -174,18 +179,18 @@ def checkScores():
     
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
-    try:
-        fullText = urllib.urlopen(URL).read()
-    except:
-        print 'URL OPEN ERROR'
-        return
+##    try:
+##        fullText = urllib.urlopen(URL).read()
+##    except:
+##        print 'URL OPEN ERROR'
+##        return
     t1 = time.time()
     if t1-t0 > 3: print 'URL OPEN LAG =',round(t1-t0,3),'SECONDS'
     tLast = t1
     
     # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
-    #fullText = doc.readline()
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+    fullText = doc.readline()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -454,7 +459,7 @@ def renderBox(gameNum, row, column):
     periodText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
     y1 = sp+(gh+sp)*(row-1)+gh/2-1
     timeText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
-
+    
     # Home team images
     x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
@@ -697,6 +702,18 @@ root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
 root.iconbitmap(thisDir+'\\Assets\\Images\\icon.ico')
 page = Tkinter.Canvas(root, highlightthickness=0, background='white')
+
+
+
+
+#MOVE
+def click(event):
+    x, y = event.x, event.y
+    print('{}, {}'.format(x, y))
+
+root.bind('<Button-1>', click)
+
+
      
 # Begin checking for scores
 checkScores()
