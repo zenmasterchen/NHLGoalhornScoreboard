@@ -124,7 +124,6 @@ lw = 100                            #logo width
 tw = 70                             #text width
 sw = 128                            #splash screen width
 sh = 128                            #splash screen height
-columnMax = numTeams/2              #maximum number of games in a column **
 
 # UX information
 logoImages = [Tkinter.PhotoImage]*(numTeams+1)
@@ -189,7 +188,7 @@ def checkScores():
     tLast = t1
     
     # Read in a test file if in development (comment out otherwise)
-    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores4.htm')
     fullText = doc.readline()
 
     # Roughly cut out each game using NHL delimiters
@@ -383,7 +382,7 @@ def checkScores():
 def initializeBoard():
 
     global page; global numGames;
-    global columnMax; global sp; global gw; global gh;
+    global sp; global gw; global gh;
     global scoreText; global periodText; global timeText;
     global teamLogos; global lamps; global shadows;
 
@@ -398,28 +397,23 @@ def initializeBoard():
     teamLogos = [page.create_image(0,0)]*numGames*2
     shadows = [page.create_image(0,0)]*numGames*2
     lamps = [page.create_image(0,0)]*numGames*2
-
-    # Choose the number of columns
-    if numGames > columnMax:
-        numColumns = 2
-    else:
-        numColumns = 1
-
+    
     # Create an appropriate layout    
-    pageWidth = (sp + gw + sp) * numColumns
-    pageHeight = sp + (gh+sp)*round(float(numGames)/numColumns)  
+    pageWidth = sp + gw + sp
+    pageHeight = sp + (gh+sp)*numGames
     page.config(width=pageWidth, height=pageHeight)
 
-    # Draw the boxes
-    boxCounter = 0
-    currRow = 1
-    while True:
-        renderBox(boxCounter, currRow,1); boxCounter += 1;
-        if boxCounter >= numGames: break
-        if numColumns >= 2:
-            renderBox(boxCounter, currRow,2); boxCounter += 1
-            if boxCounter >= numGames: break
-        currRow += 1
+    # Draw the games
+##    gameCounter = 0
+##    currRow = 1
+##    while True:
+##        #renderGame(gameCounter, currRow,1);
+##        gameCounter += 1;
+##        if gameCounter >= numGames:
+##            break
+##        currRow += 1
+    for gameNum in range(numGames):
+        renderGame(gameNum)                
     page.pack()
 
     # Debug text
@@ -430,20 +424,22 @@ def initializeBoard():
 
 #######################################
 ##
-##  Render Box
+##  Render Game
 ##
-##  Draws elements for boxes on the scoreboard for each game, based on its
+##  Draws elements on the scoreboard for each game based on its
 ##  game number and position. Gets called by initializeBoard().
 ##
-def renderBox(gameNum, row, column):
+def renderGame(gameNum):
 
     global page; global sp; global gh; global gw; global lw; global tw;
     global teamLogos; global lamps; global shadows;
     global scoreText; global periodText; global timeText;
     global lampImage; global shadowImage;
 
+    row = gameNum+1
+
     # Away team images
-    x1 = sp+(gw+sp+sp)*(column-1)+lw/2
+    x1 = sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
     shadows[gameNum*2] = page.create_image(x1, y1, anchor='center', \
                                             image=shadowImage, state='hidden')
@@ -452,7 +448,7 @@ def renderBox(gameNum, row, column):
     teamLogos[gameNum*2] = page.create_image(x1, y1, anchor='center')
 
     # Text
-    x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw/2
+    x1 = sp+lw+sp+tw/2
     y1 = sp+(gh+sp)*(row-1)+15
     scoreText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
     y1 = sp+(gh+sp)*(row-1)+15+26
@@ -461,7 +457,7 @@ def renderBox(gameNum, row, column):
     timeText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
     
     # Home team images
-    x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw/2
+    x1 = sp+lw+sp+tw+sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
     shadows[gameNum*2+1] = page.create_image(x1, y1, anchor='center', \
                                             image=shadowImage, state='hidden')
@@ -708,8 +704,23 @@ page = Tkinter.Canvas(root, highlightthickness=0, background='white')
 
 #MOVE
 def click(event):
-    x, y = event.x, event.y
-    print('{}, {}'.format(x, y))
+
+    #global logoX; global logoY; global lw; global gh
+    
+    clickX, clickY = event.x, event.y
+    print('{}, {}'.format(clickX, clickY))
+
+
+
+
+    #logoX = 
+
+##    for x in logoX:
+##        if x-lw/2 < clickX and clickX < x+lw/2:
+##            for y in logoY:
+##                if y-gh/2 < clickY and clickY < y+gh/2:
+##                    print x, y
+##                    break
 
 root.bind('<Button-1>', click)
 
