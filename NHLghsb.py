@@ -691,41 +691,86 @@ def loadHorns():
     horns[penguins] = hornDirectory+'pittsburgh.wav'
 
 
+#######################################
+##
+##  Click
+##
+##  Determines the behavior of a mouse button click.
+##  Triggered via Tkinter's bind capability.
+##
+def click(event):
+
+    teamNum = locateTeam(event.x, event.y)
+
+    if teamNum >= 0:
+        print 'Valid click over', teams[teamNum]
+    else:
+        print 'Invalid click'
+
+    return
+
+
+#######################################
+##
+##  Release
+##
+##  Determines the behavior of a mouse button release.
+##  Triggered via Tkinter's bind capability.
+##
+def release(event):
+
+    teamNum = locateTeam(event.x, event.y)
+
+    if teamNum >= 0:
+        print 'Valid release over', teams[teamNum]
+    else:
+        print 'Invalid release'
+
+    return
+
+
+#######################################
+##
+##  Locate Team
+##
+##  Deteremins if a mouse event is valid (over a team logo) and returns the
+##  corresponding index. Gets called by click(event) and release(event).
+##
+def locateTeam(x, y):
+
+    global sp; global lw; global gh
+
+    # Loop through the game possibilities
+    for index in range(numGames):
+
+        # Check the y coordinate
+        if sp+(gh+sp)*index <= y and y <= sp+(gh+sp)*index+gh:
+
+            # Check the x coordinate (away team)
+            if sp <= x and x <= sp+lw:
+                return index*2
+                break
+            
+            # Check the x coordinate (home team)
+            elif sp+lw+sp+tw+sp <= x and x <= sp+lw+sp+tw+sp+lw:
+                return index*2+1
+                break    
+
+    # Return -1 if the click is invalid
+    return -1
+
+
+    
 ####################################  MAIN  ####################################
     
 # Tkinter root widget
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
 root.iconbitmap(thisDir+'\\Assets\\Images\\icon.ico')
-page = Tkinter.Canvas(root, highlightthickness=0, background='white')
-
-
-
-
-#MOVE
-def click(event):
-
-    #global logoX; global logoY; global lw; global gh
-    
-    clickX, clickY = event.x, event.y
-    print('{}, {}'.format(clickX, clickY))
-
-
-
-
-    #logoX = 
-
-##    for x in logoX:
-##        if x-lw/2 < clickX and clickX < x+lw/2:
-##            for y in logoY:
-##                if y-gh/2 < clickY and clickY < y+gh/2:
-##                    print x, y
-##                    break
-
 root.bind('<Button-1>', click)
-
-
-     
+root.bind('<ButtonRelease-1>', release)
+page = Tkinter.Canvas(root, highlightthickness=0, background='white')
+   
 # Begin checking for scores
 checkScores()
 
