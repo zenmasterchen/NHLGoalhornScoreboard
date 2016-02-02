@@ -71,6 +71,7 @@
 ## X Make import statements more efficient
 ## X Make drop shadow more dramatic
 ##
+## X Logging
 ## W Print to log with logging instead of console
 ## W Save to executable
 ## W Get all team horns
@@ -79,8 +80,10 @@
 
 import Tkinter                  #for graphics
 import os                       #for file management
+import sys                      #for the script name
 import winsound                 #for playing wav files
 import time                     #for delays
+import logging                  #for debugging
 from urllib import urlopen      #for reading in webpage content
 from datetime import datetime   #for debugging
 
@@ -128,13 +131,14 @@ splashImage = Tkinter.PhotoImage
 horns = ['']*numTeams
 
 # File information
-configFile = 'NHLghsb.cfg'
+try: thisDir = os.path.dirname(os.path.abspath(__file__))
+except NameError: thisDir = os.path.dirname(os.path.abspath(sys.argv[0]))
+configFile = 'favorites.cfg'
+logFile = 'scoresheet.log'
+logging.basicConfig(filename=thisDir+'\\Assets\\'+logFile, filemode='w', \
+format='%(asctime)s - %(message)s', datefmt='%I:%M:%S %p', level=logging.DEBUG,)
 URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
-try:
-    thisDir = os.path.dirname(os.path.abspath(__file__))
-except NameError:  # We are the main py2exe script, not a module
-    import sys
-    thisDir = os.path.dirname(os.path.abspath(sys.argv[0]))
+
 
 
 #################################  FUNCTIONS  ##################################
@@ -172,6 +176,7 @@ def checkScores():
     # Treat this as a first run if 
     if not firstRun and time.time()-tLast > tTimeout*60:
         print 'TIMEOUT - STARTING OVER'
+        logging.warning('TIMEOUT - STARTING OVER')
         firstRun = True
     
     # Read in the raw NHL scores information from the ESPN feed
@@ -180,9 +185,12 @@ def checkScores():
         fullText = urlopen(URL).read()
     except:
         print 'URL OPEN ERROR'
+        logging.error('URL OPEN ERROR')
         return
     t1 = time.time()
-    if t1-t0 > 3: print 'URL OPEN LAG =',round(t1-t0,3),'SECONDS'
+    if t1-t0 > 3:
+        print 'URL OPEN LAG =',round(t1-t0,3),'SECONDS'
+        logging.warning('URL OPEN LAG = %0.2f SECONDS', t1-t0)
     tLast = t1
     
     # Read in a test file if in development (comment out otherwise)
@@ -194,11 +202,13 @@ def checkScores():
     gamesArray = fullText.split('nhl_s_left')[1:]
     if len(gamesArray) == 0:
         print 'No game(s) detected'
+        logging.debug('No game(s) detected')
         numGames = 0
         splashScreen()
         return
     if len(gamesArray) != numGames and firstRun == False:
         print 'New game(s) detected'
+        logging.debug('New game(s) detected')
         firstRun = True
     numGames = len(gamesArray)        
 
@@ -374,6 +384,7 @@ def initializeBoard():
 
     # Debug text
     print 'Scoreboard initialized'
+    logging.info('Scoreboard initialized')
     
     return
 
@@ -484,6 +495,7 @@ def fillScoreboard():
 
     # Debug text
     print 'Scoreboard filled'
+    logging.info('Scoreboard filled')
     
     # Display scores and time
     updateScoreboard()
@@ -526,6 +538,7 @@ def updateScoreboard():
     timeNow = datetime.now()
     updateTime = str(timeNow.hour)+':'+str(timeNow.minute).zfill(2)+':'+str(timeNow.second).zfill(2)
     print 'Scoreboard updated: '+updateTime
+    logging.info('Scoreboard updated')
 
     return
 
@@ -546,6 +559,7 @@ def toggleLamps():
         if flag == True:
             page.itemconfig(lamps[index], state='normal')
             print 'Goal scored by', teams[index]
+            logging.info('Goal scored by %s!', teams[index])
         else:
             page.itemconfig(lamps[index], state='hidden')
 
@@ -605,6 +619,7 @@ def splashScreen():
     
     # Debug text
     print 'Splash screen displayed'
+    logging.info('Splash screen displayed')
 
     return
 
@@ -691,9 +706,11 @@ def click(event):
         if tracking[teamNum] == False:
             tracking[teamNum] = True
             print 'Now tracking', teams[teamNum]
+            logging.info('Now tracking %s', teams[teamNum])
         else:
             tracking[teamNum] = False
             print 'No longer tracking', teams[teamNum]
+            logging.info('No longer tracking %s', teams[teamNum])
 
         # Update the team's drop shadow for user feedback
         setShadows()
@@ -752,6 +769,7 @@ def loadConfig():
         doc.close()
     except:
         print 'CONFIGURATION ERROR'
+        logging.error('CONFIGURATION ERROR')
         return
 
     # Check for team abbreviations and add to favorites
