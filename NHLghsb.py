@@ -40,38 +40,48 @@
 ##   X Check scopes
 ## N Goal scored appears before updated
 ##
-## \ Favorite team selection (layout)
+## X Favorite team selection (layout)
 ##   X Denote with graphic change on main screen
 ##     N Different-colored glow
 ##     X Drop shadow (place under lamp to avoid overlay)
 ##   N New layout for selection screen
-##   \ Clickable in Tkinter
-##     X Tkinter button or bind: button
-##     \ What function to run upon click?!
-##       - toggleFave(ID)
-##       - toggles favorite[ID] to True/False
-##       - changes visibility of the shadow accordingly
+##   X Clickable in Tkinter
+##     N Tkinter button: transparency issue
+##     N Tkinter bind: can't bind to image, can't place transparent canvas
+##     X Get mouse position by binding to root
+##     X Detect location upon click: time for some math
+##       X Row = game
+##       X Column = away/home
+##     N Animate 1-pixel move down upon single click
+##     N Upon click or click release, run toggleFave(ID)
+##       X toggles favorite[ID] to True/False
+##       X changes visibility of the shadow accordingly
+##     X Set horns to use new tracking variable
 ##   N Title change, e.g. "tracking COL and PIT" No, length issue
-##   - Move initial shadow setting away from fillScoreboard
+##   X Move initial shadow setting away from fillScoreboard (updateScoreboard?)
 ##
-## - Configuration file
-##   - No conflict with live selection
-##   - Ignore if configuration file not found
-##     - Simply load and track the teams in the file
-##     - No autosaving if team selections change
+## X Configuration file
+##   X No conflict with live selection
+##   X Ignore if configuration file not found
+##     X Simply load and track the teams in the file
+##     X No autosaving if team selections change
+##   X Change team names to abbreviations?
+##   X Move icon to Assets from Images
 ##
+## X Make import statements more efficient
+## ! Make drop shadow more dramatic
 ## - Print to log with logging instead of console
 ## - Save to executable
 ## W Get all team horns
 ##
 
 
-import urllib       #for reading in webpage content
-import winsound     #for playing wav files
-import time         #for delays
-import Tkinter      #for graphics
-import os           #for file management
-from datetime import datetime     #for debugging
+import Tkinter                  #for graphics
+import os                       #for file management
+import winsound                 #for playing wav files
+import time                     #for delays
+from urllib import urlopen      #for reading in webpage content
+from datetime import datetime   #for debugging
 
 
 ################################################################################
@@ -84,32 +94,21 @@ from datetime import datetime     #for debugging
 # Miscellaneous 
 refreshRate = 10                    #how often to update, in seconds **
 firstRun = True                     #first run flag
-numTeams = 30                   
+numTeams = 30                       
 
 # Team IDs for logos (DO NOT ALTER)
-ducks = 0; coyotes = 1; bruins = 2; sabres = 3; flames = 4;
-hurricanes = 5; blackhawks = 6; avalanche = 7; bluejackets = 8; stars = 9;
-redwings = 10; oilers = 11; panthers = 12; kings = 13; wild = 14;
-canadiens = 15; predators = 16; devils = 17; islanders = 18; rangers = 19;
-senators = 20; flyers = 21; penguins = 22; sharks = 23; blues = 24;
-lightning = 25; mapleleafs = 26; canucks = 27; jets = 28; capitals = 29;
+ANA = 0; ARI = 1; BOS = 2; BUF = 3; CGY = 4; CAR = 5;
+CHI = 6; COL = 7; CBJ = 8; DAL = 9; DET = 10; EDM = 11;
+FLA = 12; LAK = 13; MIN = 14; MTL = 15; NSH = 16; NJD = 17;
+NYI = 18; NYR = 19; OTT = 20; PHI = 21; PIT = 22; SJS = 23;
+STL = 24; TBL = 25; TOR = 26; VAN = 27; WSH = 28; WPG = 29;
 NHL = 30;
 
-# Tracking information
-favorites = [False]*numTeams #NEW
-#favorites[avalanche] = True
-#favorites[penguins] = True
-trackedTeams = [avalanche, penguins]    #teams to track **
-trackedScores = ['0']*len(trackedTeams) #scores to track
-goalFlag = [False]*len(trackedTeams)    #goal scored flags
-tLast = 0 #NEW
-tTimeout = 30 #NEW, in minutes **
-
-# Game information
-numGames = 0 #timePeriod, gameStatus
-#scoreText, periodText, timeText
-#awayTeam, awayID, awayScore, awayFlag, awayLogo, awayLamps, awayShadow
-#homeTeam, homeID, homeScore, homeFlag, homeLogo, homeLamps, homeShadow
+# Tracking and game information
+favorites = []                      #list of favorite teams
+tLast = 0                           #time of the last update, in seconds
+tTimeout = 30                       #timeout threshold, in minutes
+numGames = 0                        #total current/upcoming NHL games
 
 # Display dimensions and settings
 sp = 20                             #spacer
@@ -119,7 +118,6 @@ lw = 100                            #logo width
 tw = 70                             #text width
 sw = 128                            #splash screen width
 sh = 128                            #splash screen height
-columnMax = numTeams/2              #maximum number of games in a column **
 
 # UX information
 logoImages = [Tkinter.PhotoImage]*(numTeams+1)
@@ -129,6 +127,7 @@ splashImage = Tkinter.PhotoImage
 horns = ['']*numTeams
 
 # File information
+configFile = 'NHLghsb.cfg'
 URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
 try:
     thisDir = os.path.dirname(os.path.abspath(__file__))
@@ -151,12 +150,14 @@ except NameError:  # We are the main py2exe script, not a module
 def checkScores():
 
     global URL; global page; global refreshRate; global firstRun; global numGames;
-    global trackedTeams; global trackedScores; global goalFlag; global horns;
+    global horns;
 
     global timePeriod; global gameStatus;
-    global tLast; global tTimeout
+    
+    global tLast; global tTimeout;
 
-    global teams; global teamIDs; global scores; global goalFlags;
+    global teams; global teamIDs; global scores; 
+    global goalFlags; global tracking;
 
 
     # Load assets
@@ -175,7 +176,7 @@ def checkScores():
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
     try:
-        fullText = urllib.urlopen(URL).read()
+        fullText = urlopen(URL).read()
     except:
         print 'URL OPEN ERROR'
         return
@@ -186,6 +187,7 @@ def checkScores():
     # Read in a test file if in development (comment out otherwise)
     #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
     #fullText = doc.readline()
+    #doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -205,6 +207,7 @@ def checkScores():
         teamIDs = ['-1']*numGames*2
         scores = ['0']*numGames*2
         goalFlags = [False]*numGames*2
+        tracking = [False]*numGames*2
         timePeriod = ['']*numGames
         gameStatus = [0]*numGames      
         
@@ -270,6 +273,9 @@ def checkScores():
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2] and not firstRun:
                 goalFlags[index*2] = True
+                if tracking[index*2] == True:
+                    winsound.PlaySound(horns[teamIDs[index*2]], \
+                                   winsound.SND_FILENAME | winsound.SND_ASYNC)
             scores[index*2] = newScore
             game = game[game.find(' ')+2:]
 
@@ -278,6 +284,9 @@ def checkScores():
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2+1] and not firstRun:
                 goalFlags[index*2+1] = True
+                if tracking[index*2+1] == True:
+                    winsound.PlaySound(horns[teamIDs[index*2+1]], \
+                                   winsound.SND_FILENAME | winsound.SND_ASYNC)
             scores[index*2+1] = newScore
             
             game = game[game.find(' ')+1:]        
@@ -319,48 +328,6 @@ def checkScores():
     else:
         toggleLamps()
         updateScoreboard()
-
-    # Loop through the games again to check on tracked teams #WILL BE REDONE
-    for index, game in enumerate(gamesArray):
-        
-        # Detect game in progress
-        if gameStatus[index] > 0 and gameStatus[index] <= 5:
-
-            # Check for tracked teams
-            for trackedIndex, teamID in enumerate(trackedTeams):
-
-                # Match against the away team
-                if teamID == teamIDs[index*2]:
-
-                    # Check for a valid goal
-                    if scores[index*2] > trackedScores[trackedIndex]:
-                        
-                        # Count it
-                        goalFlag[trackedIndex] = True
-
-                        # Update the tracked score
-                        trackedScores[trackedIndex] = scores[index*2]
-
-                # Match against the home team
-                elif teamID == teamIDs[index*2+1]:
-
-                    # Check for a valid goal
-                    if scores[index*2+1] > trackedScores[trackedIndex]:
-                        
-                        # Count it
-                        goalFlag[trackedIndex] = True
-
-                        # Update the tracked score
-                        trackedScores[trackedIndex] = scores[index*2+1]                             
-            
-    # Play goal horns and light the lamp if tracked scores have changed
-    for trackedIndex, flag in enumerate(goalFlag):
-        if flag:
-            if not firstRun:
-                print 'Goal scored!'
-                winsound.PlaySound(horns[trackedTeams[trackedIndex]], \
-                                   winsound.SND_FILENAME | winsound.SND_ASYNC)
-            goalFlag = [False]*len(goalFlag)
     
     # No longer a rookie
     firstRun = False
@@ -378,7 +345,7 @@ def checkScores():
 def initializeBoard():
 
     global page; global numGames;
-    global columnMax; global sp; global gw; global gh;
+    global sp; global gw; global gh;
     global scoreText; global periodText; global timeText;
     global teamLogos; global lamps; global shadows;
 
@@ -393,28 +360,15 @@ def initializeBoard():
     teamLogos = [page.create_image(0,0)]*numGames*2
     shadows = [page.create_image(0,0)]*numGames*2
     lamps = [page.create_image(0,0)]*numGames*2
-
-    # Choose the number of columns
-    if numGames > columnMax:
-        numColumns = 2
-    else:
-        numColumns = 1
-
+    
     # Create an appropriate layout    
-    pageWidth = (sp + gw + sp) * numColumns
-    pageHeight = sp + (gh+sp)*round(float(numGames)/numColumns)  
+    pageWidth = sp + gw + sp
+    pageHeight = sp + (gh+sp)*numGames
     page.config(width=pageWidth, height=pageHeight)
 
-    # Draw the boxes
-    boxCounter = 0
-    currRow = 1
-    while True:
-        renderBox(boxCounter, currRow,1); boxCounter += 1;
-        if boxCounter >= numGames: break
-        if numColumns >= 2:
-            renderBox(boxCounter, currRow,2); boxCounter += 1
-            if boxCounter >= numGames: break
-        currRow += 1
+    # Draw the games
+    for gameNum in range(numGames):
+        renderGame(gameNum)                
     page.pack()
 
     # Debug text
@@ -425,20 +379,22 @@ def initializeBoard():
 
 #######################################
 ##
-##  Render Box
+##  Render Game
 ##
-##  Draws elements for boxes on the scoreboard for each game, based on its
+##  Draws elements on the scoreboard for each game based on its
 ##  game number and position. Gets called by initializeBoard().
 ##
-def renderBox(gameNum, row, column):
+def renderGame(gameNum):
 
     global page; global sp; global gh; global gw; global lw; global tw;
     global teamLogos; global lamps; global shadows;
     global scoreText; global periodText; global timeText;
     global lampImage; global shadowImage;
 
+    row = gameNum+1
+
     # Away team images
-    x1 = sp+(gw+sp+sp)*(column-1)+lw/2
+    x1 = sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
     shadows[gameNum*2] = page.create_image(x1, y1, anchor='center', \
                                             image=shadowImage, state='hidden')
@@ -447,16 +403,16 @@ def renderBox(gameNum, row, column):
     teamLogos[gameNum*2] = page.create_image(x1, y1, anchor='center')
 
     # Text
-    x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw/2
+    x1 = sp+lw+sp+tw/2
     y1 = sp+(gh+sp)*(row-1)+15
     scoreText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
     y1 = sp+(gh+sp)*(row-1)+15+26
     periodText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
     y1 = sp+(gh+sp)*(row-1)+gh/2-1
     timeText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
-
+    
     # Home team images
-    x1 = sp+(gw+sp+sp)*(column-1)+lw+sp+tw+sp+lw/2
+    x1 = sp+lw+sp+tw+sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
     shadows[gameNum*2+1] = page.create_image(x1, y1, anchor='center', \
                                             image=shadowImage, state='hidden')
@@ -478,49 +434,52 @@ def renderBox(gameNum, row, column):
 ##
 def fillScoreboard():
 
-    global page; global numGames; global teams; global trackedTeams;
-    global teamIDs; global teamLogos; global lamps; global shadows;
-    global logoImages
-
+    global page; global teams; global teamIDs;
+    global teamLogos; global logoImages; global favorites; global tracking;
+    
     # Loop through the games to match the teams
     for index, team in enumerate(teams):
-        if team == 'Anaheim': teamIDs[index] = ducks
-        elif team == 'Arizona': teamIDs[index] = coyotes                      
-        elif team == 'Boston': teamIDs[index] = bruins
-        elif team == 'Buffalo': teamIDs[index] = sabres
-        elif team == 'Calgary': teamIDs[index] = flames           
-        elif team == 'Carolina': teamIDs[index] = hurricanes 
-        elif team == 'Chicago': teamIDs[index] = blackhawks
-        elif team == 'Colorado': teamIDs[index] = avalanche          
-        elif team == 'Columbus': teamIDs[index] = bluejackets
-        elif team == 'Dallas': teamIDs[index] = stars
-        elif team == 'Detroit': teamIDs[index] = redwings         
-        elif team == 'Edmonton': teamIDs[index] = oilers
-        elif team == 'Florida': teamIDs[index] = panthers
-        elif team == 'LosAngeles': teamIDs[index] = kings         
-        elif team == 'Minnesota': teamIDs[index] = wild
-        elif team == 'Montreal': teamIDs[index] = canadiens
-        elif team == 'Nashville': teamIDs[index] = predators           
-        elif team == 'NewJersey': teamIDs[index] = devils
-        elif team == 'NYIslanders': teamIDs[index] = islanders
-        elif team == 'NYRangers': teamIDs[index] = rangers          
-        elif team == 'Ottawa': teamIDs[index] = senators 
-        elif team == 'Philadelphia': teamIDs[index] = flyers
-        elif team == 'Pittsburgh': teamIDs[index] = penguins
-        elif team == 'SanJose': teamIDs[index] = sharks
-        elif team == 'StLouis': teamIDs[index] = blues         
-        elif team == 'TampaBay': teamIDs[index] = lightning
-        elif team == 'Toronto': teamIDs[index] = mapleleafs
-        elif team == 'Vancouver': teamIDs[index] = canucks       
-        elif team == 'Washington': teamIDs[index] = capitals 
-        elif team == 'Winnipeg': teamIDs[index] = jets
+        if team == 'Anaheim': teamIDs[index] = ANA
+        elif team == 'Arizona': teamIDs[index] = ARI                      
+        elif team == 'Boston': teamIDs[index] = BOS
+        elif team == 'Buffalo': teamIDs[index] = BUF
+        elif team == 'Calgary': teamIDs[index] = CGY
+        elif team == 'Carolina': teamIDs[index] = CAR
+        elif team == 'Chicago': teamIDs[index] = CHI
+        elif team == 'Colorado': teamIDs[index] = COL
+        elif team == 'Columbus': teamIDs[index] = CBJ
+        elif team == 'Dallas': teamIDs[index] = DAL
+        elif team == 'Detroit': teamIDs[index] = DET
+        elif team == 'Edmonton': teamIDs[index] = EDM
+        elif team == 'Florida': teamIDs[index] = FLA
+        elif team == 'LosAngeles': teamIDs[index] = LAK
+        elif team == 'Minnesota': teamIDs[index] = MIN
+        elif team == 'Montreal': teamIDs[index] = MTL
+        elif team == 'Nashville': teamIDs[index] = NSH
+        elif team == 'NewJersey': teamIDs[index] = NJD
+        elif team == 'NYIslanders': teamIDs[index] = NYI
+        elif team == 'NYRangers': teamIDs[index] = NYR
+        elif team == 'Ottawa': teamIDs[index] = OTT
+        elif team == 'Philadelphia': teamIDs[index] = PHI
+        elif team == 'Pittsburgh': teamIDs[index] = PIT
+        elif team == 'SanJose': teamIDs[index] = SJS
+        elif team == 'StLouis': teamIDs[index] = STL
+        elif team == 'TampaBay': teamIDs[index] = TBL
+        elif team == 'Toronto': teamIDs[index] = TOR
+        elif team == 'Vancouver': teamIDs[index] = VAN
+        elif team == 'Washington': teamIDs[index] = WSH
+        elif team == 'Winnipeg': teamIDs[index] = WPG
         else: teamIDs[index] = NHL
+
+        # Set the logo
         page.itemconfig(teamLogos[index], image=logoImages[teamIDs[index]])
 
-        # TODO: move to a separate function that checks once every iteration
-        if teamIDs[index] in trackedTeams:
-            #print 'yup'
-            page.itemconfig(shadows[index], state='normal')
+        # Check for a favorite team
+        if teamIDs[index] in favorites:
+            tracking[index] = True
+
+    # Denote the tracked teams
+    setShadows()
 
     # Debug text
     print 'Scoreboard filled'
@@ -597,6 +556,29 @@ def toggleLamps():
 
 #######################################
 ##
+##  Set Shadows
+##
+##  Displays drop shadows for teams being tracked for goal horns, or resets them
+##  to hidden otherwise.
+##
+def setShadows():
+
+    global page; global tracking; global shadows;
+
+    # Loop through the games to match the teams
+    for index, status in enumerate(tracking):
+
+        # Set the shadows accordingly
+        if status == True: 
+            page.itemconfig(shadows[index], state='normal')
+        else:
+            page.itemconfig(shadows[index], state='hidden')
+
+    return
+
+
+#######################################
+##
 ##  Splash Screen
 ##
 ##  Displays the NHL Goal Horn Scoreboard logo
@@ -639,35 +621,36 @@ def loadImages():
     global logoImages; global lampImage; global shadowImage; global splashImage;
 
     imageDirectory = thisDir+'\\Assets\\Images\\'
-    logoImages[ducks] = Tkinter.PhotoImage(file=imageDirectory+'ANA.gif')
-    logoImages[coyotes] = Tkinter.PhotoImage(file=imageDirectory+'ARI.gif')
-    logoImages[bruins] = Tkinter.PhotoImage(file=imageDirectory+'BOS.gif')
-    logoImages[sabres] = Tkinter.PhotoImage(file=imageDirectory+'BUF.gif')
-    logoImages[flames] = Tkinter.PhotoImage(file=imageDirectory+'CGY.gif')
-    logoImages[hurricanes] = Tkinter.PhotoImage(file=imageDirectory+'CAR.gif')
-    logoImages[blackhawks] = Tkinter.PhotoImage(file=imageDirectory+'CHI.gif')
-    logoImages[avalanche] = Tkinter.PhotoImage(file=imageDirectory+'COL.gif')
-    logoImages[bluejackets] = Tkinter.PhotoImage(file=imageDirectory+'CBJ.gif')
-    logoImages[stars] = Tkinter.PhotoImage(file=imageDirectory+'DAL.gif')
-    logoImages[redwings] = Tkinter.PhotoImage(file=imageDirectory+'DET.gif')
-    logoImages[oilers] = Tkinter.PhotoImage(file=imageDirectory+'EDM.gif')
-    logoImages[panthers] = Tkinter.PhotoImage(file=imageDirectory+'FLA.gif')
-    logoImages[kings] = Tkinter.PhotoImage(file=imageDirectory+'LAK.gif')
-    logoImages[wild] = Tkinter.PhotoImage(file=imageDirectory+'MIN.gif')
-    logoImages[canadiens] = Tkinter.PhotoImage(file=imageDirectory+'MTL.gif')
-    logoImages[predators] = Tkinter.PhotoImage(file=imageDirectory+'NSH.gif')
-    logoImages[devils] = Tkinter.PhotoImage(file=imageDirectory+'NJD.gif')
-    logoImages[islanders] = Tkinter.PhotoImage(file=imageDirectory+'NYI.gif')
-    logoImages[rangers] = Tkinter.PhotoImage(file=imageDirectory+'NYR.gif')
-    logoImages[senators] = Tkinter.PhotoImage(file=imageDirectory+'OTT.gif')
-    logoImages[flyers] = Tkinter.PhotoImage(file=imageDirectory+'PHI.gif')
-    logoImages[penguins] = Tkinter.PhotoImage(file=imageDirectory+'PIT.gif')
-    logoImages[sharks] = Tkinter.PhotoImage(file=imageDirectory+'SJS.gif')
-    logoImages[blues] = Tkinter.PhotoImage(file=imageDirectory+'STL.gif')
-    logoImages[lightning] = Tkinter.PhotoImage(file=imageDirectory+'TBL.gif')
-    logoImages[canucks] = Tkinter.PhotoImage(file=imageDirectory+'VAN.gif')
-    logoImages[jets] = Tkinter.PhotoImage(file=imageDirectory+'WPG.gif')
-    logoImages[capitals] = Tkinter.PhotoImage(file=imageDirectory+'WSH.gif')
+    logoImages[ANA] = Tkinter.PhotoImage(file=imageDirectory+'ANA.gif')
+    logoImages[ARI] = Tkinter.PhotoImage(file=imageDirectory+'ARI.gif')
+    logoImages[BOS] = Tkinter.PhotoImage(file=imageDirectory+'BOS.gif')
+    logoImages[BUF] = Tkinter.PhotoImage(file=imageDirectory+'BUF.gif')
+    logoImages[CGY] = Tkinter.PhotoImage(file=imageDirectory+'CGY.gif')
+    logoImages[CAR] = Tkinter.PhotoImage(file=imageDirectory+'CAR.gif')
+    logoImages[CHI] = Tkinter.PhotoImage(file=imageDirectory+'CHI.gif')
+    logoImages[COL] = Tkinter.PhotoImage(file=imageDirectory+'COL.gif')
+    logoImages[CBJ] = Tkinter.PhotoImage(file=imageDirectory+'CBJ.gif')
+    logoImages[DAL] = Tkinter.PhotoImage(file=imageDirectory+'DAL.gif')
+    logoImages[DET] = Tkinter.PhotoImage(file=imageDirectory+'DET.gif')
+    logoImages[EDM] = Tkinter.PhotoImage(file=imageDirectory+'EDM.gif')
+    logoImages[FLA] = Tkinter.PhotoImage(file=imageDirectory+'FLA.gif')
+    logoImages[LAK] = Tkinter.PhotoImage(file=imageDirectory+'LAK.gif')
+    logoImages[MIN] = Tkinter.PhotoImage(file=imageDirectory+'MIN.gif')
+    logoImages[MTL] = Tkinter.PhotoImage(file=imageDirectory+'MTL.gif')
+    logoImages[NSH] = Tkinter.PhotoImage(file=imageDirectory+'NSH.gif')
+    logoImages[NJD] = Tkinter.PhotoImage(file=imageDirectory+'NJD.gif')
+    logoImages[NYI] = Tkinter.PhotoImage(file=imageDirectory+'NYI.gif')
+    logoImages[NYR] = Tkinter.PhotoImage(file=imageDirectory+'NYR.gif')
+    logoImages[OTT] = Tkinter.PhotoImage(file=imageDirectory+'OTT.gif')
+    logoImages[PHI] = Tkinter.PhotoImage(file=imageDirectory+'PHI.gif')
+    logoImages[PIT] = Tkinter.PhotoImage(file=imageDirectory+'PIT.gif')
+    logoImages[SJS] = Tkinter.PhotoImage(file=imageDirectory+'SJS.gif')
+    logoImages[STL] = Tkinter.PhotoImage(file=imageDirectory+'STL.gif')
+    logoImages[TBL] = Tkinter.PhotoImage(file=imageDirectory+'TBL.gif')
+    logoImages[TOR] = Tkinter.PhotoImage(file=imageDirectory+'TOR.gif')
+    logoImages[VAN] = Tkinter.PhotoImage(file=imageDirectory+'VAN.gif')
+    logoImages[WPG] = Tkinter.PhotoImage(file=imageDirectory+'WPG.gif')
+    logoImages[WSH] = Tkinter.PhotoImage(file=imageDirectory+'WSH.gif')
     logoImages[NHL] = Tkinter.PhotoImage(file=imageDirectory+'NHL.gif')
     lampImage = Tkinter.PhotoImage(file=imageDirectory+'lamp.gif')
     shadowImage = Tkinter.PhotoImage(file=imageDirectory+'shadow.gif')
@@ -686,18 +669,137 @@ def loadHorns():
     global horns; global thisDir;
     
     hornDirectory = thisDir+'\\Assets\\Audio\\'
-    horns[avalanche] = hornDirectory+'colorado.wav'
-    horns[penguins] = hornDirectory+'pittsburgh.wav'
+    horns[COL] = hornDirectory+'colorado.wav'
+    horns[PIT] = hornDirectory+'pittsburgh.wav'
 
 
+#######################################
+##
+##  Click
+##
+##  Determines the behavior of a mouse button click.
+##  Triggered via Tkinter's bind capability.
+##
+def click(event):
+
+    # Check for a valid click
+    teamNum = locateTeam(event.x, event.y)
+    if teamNum >= 0:
+
+        # Toggle the tracking status of the clicked-on team
+        if tracking[teamNum] == False:
+            tracking[teamNum] = True
+            print 'Now tracking', teams[teamNum]
+        else:
+            tracking[teamNum] = False
+            print 'No longer tracking', teams[teamNum]
+
+        # Update the team's drop shadow for user feedback
+        setShadows()
+
+    return
+
+
+#######################################
+##
+##  Locate Team
+##
+##  Determine if a mouse event is valid (over a team logo) and returns the
+##  corresponding index. Gets called by click(event) and release(event).
+##
+def locateTeam(x, y):
+
+    global sp; global lw; global gh
+
+    # Loop through the game possibilities
+    for index in range(numGames):
+
+        # Check the y coordinate
+        if sp+(gh+sp)*index <= y and y <= sp+(gh+sp)*index+gh:
+
+            # Check the x coordinate (away team)
+            if sp <= x and x <= sp+lw:
+                return index*2
+                break
+            
+            # Check the x coordinate (home team)
+            elif sp+lw+sp+tw+sp <= x and x <= sp+lw+sp+tw+sp+lw:
+                return index*2+1
+                break    
+
+    # Return -1 if the click is invalid
+    return -1
+
+
+#######################################
+##
+##  Load Configuration Information
+##
+##  Retrieve the user's preferences from the configuration file
+##
+def loadConfig():
+
+    global thisDir; global configFile; global favorites;
+
+    # Reset the list of favorite teams
+    favorites = []
+
+    # Read in a list of teams from the configuration file
+    try:
+        doc = open(thisDir+'\\Assets\\'+configFile)
+        text = doc.readline().upper()
+        doc.close()
+    except:
+        print 'CONFIGURATION ERROR'
+        return
+
+    # Check for team abbreviations and add to favorites
+    if 'ANA' in text: favorites.append(ANA)
+    if 'ARI' in text: favorites.append(ARI)
+    if 'BOS' in text: favorites.append(BOS)
+    if 'BUF' in text: favorites.append(BUF)
+    if 'CGY' in text: favorites.append(CGY)
+    if 'CAR' in text: favorites.append(CAR)
+    if 'CHI' in text: favorites.append(CHI)
+    if 'COL' in text: favorites.append(COL)
+    if 'CBJ' in text: favorites.append(CBJ)
+    if 'DAL' in text: favorites.append(DAL)
+    if 'DET' in text: favorites.append(DET)
+    if 'EDM' in text: favorites.append(EDM)
+    if 'FLA' in text: favorites.append(FLA)
+    if 'LAK' in text: favorites.append(LAK)
+    if 'MIN' in text: favorites.append(MIN)
+    if 'MTL' in text: favorites.append(MTL)
+    if 'NSH' in text: favorites.append(NSH)
+    if 'NJD' in text: favorites.append(NJD)
+    if 'NYI' in text: favorites.append(NYI)
+    if 'NYR' in text: favorites.append(NYR)
+    if 'OTT' in text: favorites.append(OTT)
+    if 'PHI' in text: favorites.append(PHI)
+    if 'PIT' in text: favorites.append(PIT)
+    if 'SJS' in text: favorites.append(SJS)
+    if 'STL' in text: favorites.append(STL)
+    if 'TBL' in text: favorites.append(TBL)
+    if 'TOR' in text: favorites.append(TOR)
+    if 'VAN' in text: favorites.append(VAN)
+    if 'WSH' in text: favorites.append(WSH)
+    if 'WPG' in text: favorites.append(WPG)
+    
+    return
+    
+    
 ####################################  MAIN  ####################################
     
 # Tkinter root widget
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
-root.iconbitmap(thisDir+'\\Assets\\Images\\icon.ico')
+root.iconbitmap(thisDir+'\\Assets\\icon.ico')
+root.bind('<Button-1>', click)
 page = Tkinter.Canvas(root, highlightthickness=0, background='white')
-     
+
+# Load user data
+loadConfig()
+   
 # Begin checking for scores
 checkScores()
 
