@@ -40,26 +40,27 @@
 ##   X Check scopes
 ## N Goal scored appears before updated
 ##
-## \ Favorite team selection (layout)
+## X Favorite team selection (layout)
 ##   X Denote with graphic change on main screen
 ##     N Different-colored glow
 ##     X Drop shadow (place under lamp to avoid overlay)
 ##   N New layout for selection screen
-##   \ Clickable in Tkinter
+##   X Clickable in Tkinter
 ##     N Tkinter button: transparency issue
 ##     N Tkinter bind: can't bind to image, can't place transparent canvas
 ##     X Get mouse position by binding to root
-##     ! Detect location upon click: TIME FOR SOME DRAWING AND MATH?!
-##       - Row = game
-##       - Column = away/home
-##     - Animate 1-pixel move down upon single click?
-##     - Upon click or click release, run toggleFave(ID)
-##       - toggles favorite[ID] to True/False
-##       - changes visibility of the shadow accordingly
+##     X Detect location upon click: time for some math
+##       X Row = game
+##       X Column = away/home
+##     N Animate 1-pixel move down upon single click
+##     N Upon click or click release, run toggleFave(ID)
+##       X toggles favorite[ID] to True/False
+##       X changes visibility of the shadow accordingly
+##     X Set horns to use new tracking variable
 ##   N Title change, e.g. "tracking COL and PIT" No, length issue
-##   - Move initial shadow setting away from fillScoreboard (updateScoreboard?)
+##   X Move initial shadow setting away from fillScoreboard (updateScoreboard?)
 ##
-## - Configuration file
+## \ Configuration file
 ##   - No conflict with live selection
 ##   - Ignore if configuration file not found
 ##     - Simply load and track the teams in the file
@@ -101,12 +102,8 @@ lightning = 25; mapleleafs = 26; canucks = 27; jets = 28; capitals = 29;
 NHL = 30;
 
 # Tracking information
-#favorites = [False]*numTeams #NEW
-#favorites[avalanche] = True
-#favorites[penguins] = True
-trackedTeams = [avalanche, penguins]    #teams to track **
-trackedScores = ['0']*len(trackedTeams) #scores to track
-goalFlag = [False]*len(trackedTeams)    #goal scored flags
+#favorites
+#tracking
 tLast = 0 #NEW
 tTimeout = 30 #NEW, in minutes **
 
@@ -154,7 +151,7 @@ except NameError:  # We are the main py2exe script, not a module
 def checkScores():
 
     global URL; global page; global refreshRate; global firstRun; global numGames;
-    global trackedTeams; global trackedScores; global goalFlag; global horns;
+    global horns;
 
     global timePeriod; global gameStatus;
     
@@ -189,7 +186,7 @@ def checkScores():
     tLast = t1
     
     # Read in a test file if in development (comment out otherwise)
-    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2.htm')
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
     fullText = doc.readline()
 
     # Roughly cut out each game using NHL delimiters
@@ -276,6 +273,9 @@ def checkScores():
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2] and not firstRun:
                 goalFlags[index*2] = True
+                if tracking[index*2] == True:
+                    winsound.PlaySound(horns[teamIDs[index*2]], \
+                                   winsound.SND_FILENAME | winsound.SND_ASYNC)
             scores[index*2] = newScore
             game = game[game.find(' ')+2:]
 
@@ -284,6 +284,9 @@ def checkScores():
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2+1] and not firstRun:
                 goalFlags[index*2+1] = True
+                if tracking[index*2+1] == True:
+                    winsound.PlaySound(horns[teamIDs[index*2+1]], \
+                                   winsound.SND_FILENAME | winsound.SND_ASYNC)
             scores[index*2+1] = newScore
             
             game = game[game.find(' ')+1:]        
@@ -325,48 +328,6 @@ def checkScores():
     else:
         toggleLamps()
         updateScoreboard()
-
-    # Loop through the games again to check on tracked teams #WILL BE REDONE
-    for index, game in enumerate(gamesArray):
-        
-        # Detect game in progress
-        if gameStatus[index] > 0 and gameStatus[index] <= 5:
-
-            # Check for tracked teams
-            for trackedIndex, teamID in enumerate(trackedTeams):
-
-                # Match against the away team
-                if teamID == teamIDs[index*2]:
-
-                    # Check for a valid goal
-                    if scores[index*2] > trackedScores[trackedIndex]:
-                        
-                        # Count it
-                        goalFlag[trackedIndex] = True
-
-                        # Update the tracked score
-                        trackedScores[trackedIndex] = scores[index*2]
-
-                # Match against the home team
-                elif teamID == teamIDs[index*2+1]:
-
-                    # Check for a valid goal
-                    if scores[index*2+1] > trackedScores[trackedIndex]:
-                        
-                        # Count it
-                        goalFlag[trackedIndex] = True
-
-                        # Update the tracked score
-                        trackedScores[trackedIndex] = scores[index*2+1]                             
-            
-    # Play goal horns and light the lamp if tracked scores have changed
-    for trackedIndex, flag in enumerate(goalFlag):
-        if flag:
-            if not firstRun:
-                print 'Goal scored!'
-                winsound.PlaySound(horns[trackedTeams[trackedIndex]], \
-                                   winsound.SND_FILENAME | winsound.SND_ASYNC)
-            goalFlag = [False]*len(goalFlag)
     
     # No longer a rookie
     firstRun = False
@@ -597,7 +558,7 @@ def toggleLamps():
 ##
 ##  Set Shadows
 ##
-##  Lights the lamps (logo glows) when teams have scored, or resets them
+##  Displays drop shadows for teams being tracked for goal horns, or resets them
 ##  to hidden otherwise.
 ##
 def setShadows():
@@ -720,12 +681,11 @@ def loadHorns():
 ##
 def click(event):
 
-    teamNum = locateTeam(event.x, event.y)
-
     # Check for a valid click
+    teamNum = locateTeam(event.x, event.y)
     if teamNum >= 0:
-        #print 'Valid click over', teams[teamNum]
 
+        # Toggle the tracking status of the clicked-on team
         if tracking[teamNum] == False:
             tracking[teamNum] = True
             print 'Now tracking', teams[teamNum]
@@ -733,7 +693,7 @@ def click(event):
             tracking[teamNum] = False
             print 'No longer tracking', teams[teamNum]
 
-        #
+        # Update the team's drop shadow for user feedback
         setShadows()
 
     return
@@ -743,7 +703,7 @@ def click(event):
 ##
 ##  Locate Team
 ##
-##  Deteremins if a mouse event is valid (over a team logo) and returns the
+##  Determine if a mouse event is valid (over a team logo) and returns the
 ##  corresponding index. Gets called by click(event) and release(event).
 ##
 def locateTeam(x, y):
