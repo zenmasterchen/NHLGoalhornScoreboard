@@ -101,7 +101,7 @@ lightning = 25; mapleleafs = 26; canucks = 27; jets = 28; capitals = 29;
 NHL = 30;
 
 # Tracking information
-favorites = [False]*numTeams #NEW
+#favorites = [False]*numTeams #NEW
 #favorites[avalanche] = True
 #favorites[penguins] = True
 trackedTeams = [avalanche, penguins]    #teams to track **
@@ -113,8 +113,7 @@ tTimeout = 30 #NEW, in minutes **
 # Game information
 numGames = 0 #timePeriod, gameStatus
 #scoreText, periodText, timeText
-#awayTeam, awayID, awayScore, awayFlag, awayLogo, awayLamps, awayShadow
-#homeTeam, homeID, homeScore, homeFlag, homeLogo, homeLamps, homeShadow
+#...
 
 # Display dimensions and settings
 sp = 20                             #spacer
@@ -158,9 +157,11 @@ def checkScores():
     global trackedTeams; global trackedScores; global goalFlag; global horns;
 
     global timePeriod; global gameStatus;
-    global tLast; global tTimeout
+    
+    global tLast; global tTimeout;
 
-    global teams; global teamIDs; global scores; global goalFlags;
+    global teams; global teamIDs; global scores; 
+    global goalFlags; global tracking;
 
 
     # Load assets
@@ -188,7 +189,7 @@ def checkScores():
     tLast = t1
     
     # Read in a test file if in development (comment out otherwise)
-    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores4.htm')
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2.htm')
     fullText = doc.readline()
 
     # Roughly cut out each game using NHL delimiters
@@ -209,6 +210,7 @@ def checkScores():
         teamIDs = ['-1']*numGames*2
         scores = ['0']*numGames*2
         goalFlags = [False]*numGames*2
+        tracking = [False]*numGames*2
         timePeriod = ['']*numGames
         gameStatus = [0]*numGames      
         
@@ -404,14 +406,6 @@ def initializeBoard():
     page.config(width=pageWidth, height=pageHeight)
 
     # Draw the games
-##    gameCounter = 0
-##    currRow = 1
-##    while True:
-##        #renderGame(gameCounter, currRow,1);
-##        gameCounter += 1;
-##        if gameCounter >= numGames:
-##            break
-##        currRow += 1
     for gameNum in range(numGames):
         renderGame(gameNum)                
     page.pack()
@@ -479,9 +473,8 @@ def renderGame(gameNum):
 ##
 def fillScoreboard():
 
-    global page; global numGames; global teams; global trackedTeams;
-    global teamIDs; global teamLogos; global lamps; global shadows;
-    global logoImages
+    global page; global teams; global teamIDs;
+    global teamLogos; global logoImages; global favorites; global tracking;
 
     # Loop through the games to match the teams
     for index, team in enumerate(teams):
@@ -516,12 +509,16 @@ def fillScoreboard():
         elif team == 'Washington': teamIDs[index] = capitals 
         elif team == 'Winnipeg': teamIDs[index] = jets
         else: teamIDs[index] = NHL
+
+        # Set the logo
         page.itemconfig(teamLogos[index], image=logoImages[teamIDs[index]])
 
-        # TODO: move to a separate function that checks once every iteration
-        if teamIDs[index] in trackedTeams:
-            #print 'yup'
-            page.itemconfig(shadows[index], state='normal')
+        # Check for a favorite team
+        if teamIDs[index] in favorites:
+            tracking[index] = True
+
+    # Denote the tracked teams
+    setShadows()
 
     # Debug text
     print 'Scoreboard filled'
@@ -593,6 +590,29 @@ def toggleLamps():
     # Reset
     goalFlags = [False]*numGames*2
         
+    return
+
+
+#######################################
+##
+##  Set Shadows
+##
+##  Lights the lamps (logo glows) when teams have scored, or resets them
+##  to hidden otherwise.
+##
+def setShadows():
+
+    global page; global tracking; global shadows;
+
+    # Loop through the games to match the teams
+    for index, status in enumerate(tracking):
+
+        # Set the shadows accordingly
+        if status == True: 
+            page.itemconfig(shadows[index], state='normal')
+        else:
+            page.itemconfig(shadows[index], state='hidden')
+
     return
 
 
@@ -702,29 +722,19 @@ def click(event):
 
     teamNum = locateTeam(event.x, event.y)
 
+    # Check for a valid click
     if teamNum >= 0:
-        print 'Valid click over', teams[teamNum]
-    else:
-        print 'Invalid click'
+        #print 'Valid click over', teams[teamNum]
 
-    return
+        if tracking[teamNum] == False:
+            tracking[teamNum] = True
+            print 'Now tracking', teams[teamNum]
+        else:
+            tracking[teamNum] = False
+            print 'No longer tracking', teams[teamNum]
 
-
-#######################################
-##
-##  Release
-##
-##  Determines the behavior of a mouse button release.
-##  Triggered via Tkinter's bind capability.
-##
-def release(event):
-
-    teamNum = locateTeam(event.x, event.y)
-
-    if teamNum >= 0:
-        print 'Valid release over', teams[teamNum]
-    else:
-        print 'Invalid release'
+        #
+        setShadows()
 
     return
 
@@ -760,6 +770,22 @@ def locateTeam(x, y):
     return -1
 
 
+#######################################
+##
+##  Load Configuration Data
+##
+##  
+##  Should only be used one time.
+##
+def loadConfig():
+
+    global thisDir; global favorites;
+    
+    #hornDirectory = thisDir+'\\Assets\\Audio\\'
+    favorites = [avalanche, penguins]
+
+    return
+    
     
 ####################################  MAIN  ####################################
     
@@ -768,8 +794,10 @@ root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
 root.iconbitmap(thisDir+'\\Assets\\Images\\icon.ico')
 root.bind('<Button-1>', click)
-root.bind('<ButtonRelease-1>', release)
 page = Tkinter.Canvas(root, highlightthickness=0, background='white')
+
+# Load user data
+loadConfig()
    
 # Begin checking for scores
 checkScores()
