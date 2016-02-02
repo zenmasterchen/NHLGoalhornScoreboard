@@ -69,9 +69,10 @@
 ##   X Move icon to Assets from Images
 ##
 ## X Make import statements more efficient
-## ! Make drop shadow more dramatic
-## - Print to log with logging instead of console
-## - Save to executable
+## X Make drop shadow more dramatic
+##
+## W Print to log with logging instead of console
+## W Save to executable
 ## W Get all team horns
 ##
 
