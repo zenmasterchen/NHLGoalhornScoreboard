@@ -100,13 +100,17 @@ refreshRate = 10                    #how often to update, in seconds **
 firstRun = True                     #first run flag
 numTeams = 30                       
 
-# Team IDs for logos (DO NOT ALTER)
+# Team IDs (DO NOT ALTER)
 ANA = 0; ARI = 1; BOS = 2; BUF = 3; CGY = 4; CAR = 5;
 CHI = 6; COL = 7; CBJ = 8; DAL = 9; DET = 10; EDM = 11;
 FLA = 12; LAK = 13; MIN = 14; MTL = 15; NSH = 16; NJD = 17;
 NYI = 18; NYR = 19; OTT = 20; PHI = 21; PIT = 22; SJS = 23;
-STL = 24; TBL = 25; TOR = 26; VAN = 27; WSH = 28; WPG = 29;
-NHL = 30;
+STL = 24; TBL = 25; TOR = 26; VAN = 27; WSH = 28; WPG = 29; NHL = 30;
+abbrev = ['ANA', 'ARI', 'BOS', 'BUF', 'CGY', 'CAR', \
+          'CHI', 'COL', 'CBJ', 'DAL', 'DET', 'EDM', \
+          'FLA', 'LAK', 'MIN', 'MTL', 'NSH', 'NJD', \
+          'NYI', 'NYR', 'OTT', 'PHI', 'PIT', 'SJS', \
+          'STL', 'TBL', 'TOR', 'VAN', 'WSH', 'WPG', '?']
 
 # Tracking and game information
 favorites = []                      #list of favorite teams
@@ -162,7 +166,7 @@ def checkScores():
     global tLast; global tTimeout;
 
     global teams; global teamIDs; global scores; 
-    global goalFlags; global tracking;
+    global abbrev; global goalFlags; global tracking;
 
 
     # Load assets
@@ -189,7 +193,7 @@ def checkScores():
         return
     t1 = time.time()
     if t1-t0 > 3:
-        print 'URL OPEN LAG =',round(t1-t0,3),'SECONDS'
+        print 'URL OPEN LAG =',round(t1-t0,2),'SECONDS'
         logging.warning('URL OPEN LAG = %0.2f SECONDS', t1-t0)
     tLast = t1
     
@@ -283,8 +287,12 @@ def checkScores():
             game = game[game.find(' ')+1:]
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2] and not firstRun:
+                print 'Goal scored by', abbrev[teamIDs[index*2]]
+                logging.info('Goal scored by %s', abbrev[teamIDs[index*2]])
                 goalFlags[index*2] = True
                 if tracking[index*2] == True:
+                    print 'Playing the goal horn for', abbrev[teamIDs[index*2]]
+                    logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2]])
                     winsound.PlaySound(horns[teamIDs[index*2]], \
                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
             scores[index*2] = newScore
@@ -294,8 +302,12 @@ def checkScores():
             game = game[game.find(' ')+1:]
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2+1] and not firstRun:
+                print 'Goal scored by', abbrev[teamIDs[index*2+1]]
+                logging.info('Goal scored by %s', abbrev[teamIDs[index*2+1]])
                 goalFlags[index*2+1] = True
                 if tracking[index*2+1] == True:
+                    print 'Playing the goal horn for', abbrev[teamIDs[index*2+1]]
+                    logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2+1]])
                     winsound.PlaySound(horns[teamIDs[index*2+1]], \
                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
             scores[index*2+1] = newScore
@@ -552,14 +564,12 @@ def updateScoreboard():
 ##
 def toggleLamps():
 
-    global page; global goalFlags; global teams; global lamps;
+    global page; global goalFlags; global abbrev; global teamIDs; global lamps;
 
     # Loop through the goal scored flags
     for index, flag in enumerate(goalFlags):
         if flag == True:
             page.itemconfig(lamps[index], state='normal')
-            print 'Goal scored by', teams[index]
-            logging.info('Goal scored by %s!', teams[index])
         else:
             page.itemconfig(lamps[index], state='hidden')
 
@@ -698,6 +708,8 @@ def loadHorns():
 ##
 def click(event):
 
+    global tracking; global abbrev; global teamIDs;
+
     # Check for a valid click
     teamNum = locateTeam(event.x, event.y)
     if teamNum >= 0:
@@ -705,12 +717,12 @@ def click(event):
         # Toggle the tracking status of the clicked-on team
         if tracking[teamNum] == False:
             tracking[teamNum] = True
-            print 'Now tracking', teams[teamNum]
-            logging.info('Now tracking %s', teams[teamNum])
+            print 'Now tracking', abbrev[teamIDs[teamNum]]
+            logging.info('Now tracking %s', abbrev[teamIDs[teamNum]])
         else:
             tracking[teamNum] = False
-            print 'No longer tracking', teams[teamNum]
-            logging.info('No longer tracking %s', teams[teamNum])
+            print 'No longer tracking', abbrev[teamIDs[teamNum]]
+            logging.info('No longer tracking %s', abbrev[teamIDs[teamNum]])
 
         # Update the team's drop shadow for user feedback
         setShadows()
