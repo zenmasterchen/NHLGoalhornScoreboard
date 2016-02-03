@@ -8,19 +8,20 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 01/21/16
+##  Last Revision: 02/03/16
 ##
 ##
 ## TO DO
 ## -----
 ## X CTRL+C to record error in log
 ## N Don't reset tracking upon timeout?
-## - Readme 
+## - Readme
+## ! Blank-initialize variables for scope
 ## X Clean up to-do list
 ##
 ## W Print to log with logging instead of console
 ## W Save to executable
-## W Get all team horns
+## - Get all team horns
 ##
 
 
@@ -38,13 +39,13 @@ from datetime import datetime   #for debugging
 ##
 ##  Declarations/Initializations
 ##
-##  User-customizable settings/variables are denoted by **
-##
 
-# Miscellaneous 
-refreshRate = 10                    #how often to update, in seconds **
+# Administrative information
 firstRun = True                     #first run flag
-numTeams = 30                       
+refreshRate = 10                    #how often to update, in seconds
+tLast = 0                           #time of the last update, in seconds
+tTimeout = 30                       #timeout threshold, in minutes
+numTeams = 30                       #number of teams in the league
 
 # Team IDs (DO NOT ALTER)
 ANA = 0; ARI = 1; BOS = 2; BUF = 3; CGY = 4; CAR = 5;
@@ -58,20 +59,16 @@ abbrev = ['ANA', 'ARI', 'BOS', 'BUF', 'CGY', 'CAR', \
           'NYI', 'NYR', 'OTT', 'PHI', 'PIT', 'SJS', \
           'STL', 'TBL', 'TOR', 'VAN', 'WSH', 'WPG', '?']
 
-# Tracking and game information
-favorites = []                      #list of favorite teams
-tLast = 0                           #time of the last update, in seconds
-tTimeout = 30                       #timeout threshold, in minutes
+# Game information
+teams = []                          #city names, per team
+teamIDs = []                        #team IDs (based on the above), per team
+scores = []                         #score, per team
+goalFlags = []                      #goal scored flag, per team
+tracking = []                       #wether or not to track goals, per team
+timePeriod = []                     #time in the game, per game
+gameStatus = []                     #state of the game (0-5 or 9), per game
+favorites = []                      #list of the user's favorite teams
 numGames = 0                        #total current/upcoming NHL games
-
-# Display dimensions and settings
-sp = 20                             #spacer
-gh = 50                             #game height, inner
-gw = 310                            #game width, inner
-lw = 100                            #logo width
-tw = 70                             #text width
-sw = 128                            #splash screen width
-sh = 128                            #splash screen height
 
 # UX information
 logoImages = [Tkinter.PhotoImage]*(numTeams+1)
@@ -79,6 +76,21 @@ lampImage = Tkinter.PhotoImage
 shadowImage = Tkinter.PhotoImage
 splashImage = Tkinter.PhotoImage
 horns = ['']*numTeams
+scoreText = []
+periodText = []
+timeText = []
+teamLogos = []
+shadows = []
+lamps = []
+
+# Display dimensions
+sp = 20                             #spacer
+gh = 50                             #game height, inner
+gw = 310                            #game width, inner
+lw = 100                            #logo width
+tw = 70                             #text width
+sw = 128                            #splash screen width
+sh = 128                            #splash screen height
 
 # File information
 try: thisDir = os.path.dirname(os.path.abspath(__file__))
@@ -88,7 +100,6 @@ logFile = 'scoresheet.log'
 logging.basicConfig(filename=thisDir+'\\Assets\\'+logFile, filemode='w', \
 format='%(asctime)s - %(message)s', datefmt='%I:%M:%S %p', level=logging.DEBUG,)
 URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
-
 
 
 #################################  FUNCTIONS  ##################################
