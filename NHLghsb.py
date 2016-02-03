@@ -13,65 +13,11 @@
 ##
 ## TO DO
 ## -----
-## X Track all teams for lamps
-##   X Rename goal horn teams to favorite teams
-##   X Treat home and away separately
+## X CTRL+C to record error in log
+## N Don't reset tracking upon timeout?
+## - Readme 
+## X Clean up to-do list
 ##
-## X Lamp bugs (ha.)
-##   N Lamps upon game start: can't replicate
-##   X Lamps upon total switchover? check
-##   X Mute lamps and horns upon return from sleep
-##     X Threshold: 30 minutes?
-##     X Just treat as firstRun
-## X All-Star bug
-## W Simplify OT and SO to "IN OT" and "IN SO"
-## X Ditch home/away split lists
-##   X away = 2*gameNum, home = 2*gameNum+1
-##   X New variables
-##     X teams
-##     X teamIDs
-##     X scores
-##     X goalFlags 
-##     X teamLogos
-##     X lamps
-##     X shadows
-##   X Lamps broken
-##   X Horns broken (Avs not tracked)
-##   X Check scopes
-## N Goal scored appears before updated
-##
-## X Favorite team selection (layout)
-##   X Denote with graphic change on main screen
-##     N Different-colored glow
-##     X Drop shadow (place under lamp to avoid overlay)
-##   N New layout for selection screen
-##   X Clickable in Tkinter
-##     N Tkinter button: transparency issue
-##     N Tkinter bind: can't bind to image, can't place transparent canvas
-##     X Get mouse position by binding to root
-##     X Detect location upon click: time for some math
-##       X Row = game
-##       X Column = away/home
-##     N Animate 1-pixel move down upon single click
-##     N Upon click or click release, run toggleFave(ID)
-##       X toggles favorite[ID] to True/False
-##       X changes visibility of the shadow accordingly
-##     X Set horns to use new tracking variable
-##   N Title change, e.g. "tracking COL and PIT" No, length issue
-##   X Move initial shadow setting away from fillScoreboard (updateScoreboard?)
-##
-## X Configuration file
-##   X No conflict with live selection
-##   X Ignore if configuration file not found
-##     X Simply load and track the teams in the file
-##     X No autosaving if team selections change
-##   X Change team names to abbreviations?
-##   X Move icon to Assets from Images
-##
-## X Make import statements more efficient
-## X Make drop shadow more dramatic
-##
-## X Logging
 ## W Print to log with logging instead of console
 ## W Save to executable
 ## W Get all team horns
@@ -158,15 +104,11 @@ URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
 
 def checkScores():
 
-    global URL; global page; global refreshRate; global firstRun; global numGames;
-    global horns;
-
-    global timePeriod; global gameStatus;
-    
-    global tLast; global tTimeout;
-
+    global refreshRate; global URL; global tLast; global tTimeout;
+    global firstRun; global numGames; 
+    global timePeriod; global gameStatus; 
     global teams; global teamIDs; global scores; 
-    global abbrev; global goalFlags; global tracking;
+    global goalFlags; global tracking; global abbrev; global horns;
 
 
     # Load assets
@@ -835,4 +777,8 @@ loadConfig()
 checkScores()
 
 # Tkinter event loop
-root.mainloop()
+try:
+    root.mainloop()
+except:
+    logging.exception('ERROR')
+    raise
