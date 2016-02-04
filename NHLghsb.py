@@ -14,14 +14,20 @@
 ## TO DO
 ## -----
 ## X CTRL+C to record error in log
-## N Don't reset tracking upon timeout?
+## ! Don't reset tracking upon timeout?
 ## - Readme
-## ! Blank-initialize variables for scope
+## X Blank-initialize variables for scope
 ## X Clean up to-do list
 ##
-## W Print to log with logging instead of console
-## W Save to executable
-## - Get all team horns
+## X Robust enough rules for restart? (consider same number of games)
+## ! Log variables upon exception
+##
+## - Print to log with logging instead of console
+## - Save to executable
+## ! Get all team horns
+##
+## W Rename to "Goal Horn Scoreboard?"
+## W New icon: siren light
 ##
 
 
@@ -43,7 +49,8 @@ from datetime import datetime   #for debugging
 # Administrative information
 firstRun = True                     #first run flag
 refreshRate = 10                    #how often to update, in seconds
-tLast = 0                           #time of the last update, in seconds
+checkSumPrev = 0
+tPrev = 0                           #time of the last update, in seconds
 tTimeout = 30                       #timeout threshold, in minutes
 numTeams = 30                       #number of teams in the league
 
@@ -115,8 +122,8 @@ URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
 
 def checkScores():
 
-    global refreshRate; global URL; global tLast; global tTimeout;
-    global firstRun; global numGames; 
+    global refreshRate; global URL; global tPrev; global tTimeout;
+    global firstRun; global numGames; global checkSumPrev;
     global timePeriod; global gameStatus; 
     global teams; global teamIDs; global scores; 
     global goalFlags; global tracking; global abbrev; global horns;
@@ -130,8 +137,8 @@ def checkScores():
     # Loop based on the desired refresh rate
     root.after(refreshRate*1000, checkScores)
 
-    # Treat this as a first run if 
-    if not firstRun and time.time()-tLast > tTimeout*60:
+    # Treat this as a first run if it's been too long since the last run
+    if not firstRun and time.time()-tPrev > tTimeout*60:
         print 'TIMEOUT - STARTING OVER'
         logging.warning('TIMEOUT - STARTING OVER')
         firstRun = True
@@ -148,10 +155,10 @@ def checkScores():
     if t1-t0 > 3:
         print 'URL OPEN LAG =',round(t1-t0,2),'SECONDS'
         logging.warning('URL OPEN LAG = %0.2f SECONDS', t1-t0)
-    tLast = t1
+    tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\switchsame.htm')
     #fullText = doc.readline()
     #doc.close()
 
@@ -167,7 +174,7 @@ def checkScores():
         print 'New game(s) detected'
         logging.debug('New game(s) detected')
         firstRun = True
-    numGames = len(gamesArray)        
+    numGames = len(gamesArray)
 
     # Initialize arrays to store game information
     if firstRun == True:
@@ -175,7 +182,6 @@ def checkScores():
         teamIDs = ['-1']*numGames*2
         scores = ['0']*numGames*2
         goalFlags = [False]*numGames*2
-        tracking = [False]*numGames*2
         timePeriod = ['']*numGames
         gameStatus = [0]*numGames      
         
@@ -266,7 +272,7 @@ def checkScores():
             scores[index*2+1] = newScore
             
             game = game[game.find(' ')+1:]        
-            timePeriod[index] = game[1:len(game)-1]            
+            timePeriod[index] = game[1:len(game)-1]
 
             # Detect period
             if '1ST' in game:
@@ -290,20 +296,25 @@ def checkScores():
             
         # Parse the shit out of games not yet started(0)
         else:
-            teams[index*2] = game[0:game.find(' ')]            
+            teams[index*2] = game[0:game.find(' ')] 
             game = game[game.find(' ')+4:len(game)]
             teams[index*2+1] = game[0:game.find(' ')]            
             game = game[game.find(' ')+1:len(game)]        
             timePeriod[index] = game[1:len(game)-1]
             gameStatus[index] = 0
 
+    # Detect team changes
+    checkSum = 0
+    for team in teams: checkSum += sum(ord(char) for char in team)
+    if checkSum != checkSumPrev and firstRun == False: firstRun = True
+    checkSumPrev = checkSum
+
     # Apply appropriate changes to the scoreboard display        
-    if firstRun == True:    
+    if firstRun == True:
         initializeBoard()
-        fillScoreboard()
-    else:
-        toggleLamps()
-        updateScoreboard()
+        setTeams()
+    toggleLamps()
+    updateScoreboard()
     
     # No longer a rookie
     firstRun = False
@@ -402,17 +413,20 @@ def renderGame(gameNum):
 
 #######################################
 ##
-##  Fill Scoreboard
+##  Set Teams
 ##
 ##  Configures the team names, IDs, and logos, then calls updateScoreboard to
 ##  configure the score and period/time text. Should only be used one time, upon
 ##  the first run of checkScores(). loadImages() and initializeBoard() must be
-##  called (or have previously been called) prior to fillScoreboard().
+##  called (or have previously been called) prior to setTeams().
 ##
-def fillScoreboard():
+def setTeams():
 
     global page; global teams; global teamIDs;
     global teamLogos; global logoImages; global favorites; global tracking;
+
+    # Reset the list of tracked teams
+    tracking = [False]*len(teams)
     
     # Loop through the games to match the teams
     for index, team in enumerate(teams):
@@ -459,11 +473,8 @@ def fillScoreboard():
     setShadows()
 
     # Debug text
-    print 'Scoreboard filled'
-    logging.info('Scoreboard filled')
-    
-    # Display scores and time
-    updateScoreboard()
+    print 'Teams set'
+    logging.info('Teams set')
 
     return
 
