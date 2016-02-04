@@ -20,7 +20,7 @@
 ## X Clean up to-do list
 ##
 ## X Robust enough rules for restart? (consider same number of games)
-## ! Log variables upon exception
+## X Log variables upon exception
 ##
 ## - Print to log with logging instead of console
 ## - Save to executable
@@ -107,6 +107,7 @@ logFile = 'scoresheet.log'
 logging.basicConfig(filename=thisDir+'\\Assets\\'+logFile, filemode='w', \
 format='%(asctime)s - %(message)s', datefmt='%I:%M:%S %p', level=logging.DEBUG,)
 URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
+fullText = ''
 
 
 #################################  FUNCTIONS  ##################################
@@ -122,7 +123,7 @@ URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
 
 def checkScores():
 
-    global refreshRate; global URL; global tPrev; global tTimeout;
+    global URL; global fullText; global tPrev; global tTimeout; 
     global firstRun; global numGames; global checkSumPrev;
     global timePeriod; global gameStatus; 
     global teams; global teamIDs; global scores; 
@@ -133,9 +134,6 @@ def checkScores():
     if firstRun == True:    
         loadImages()
         loadHorns()
-
-    # Loop based on the desired refresh rate
-    root.after(refreshRate*1000, checkScores)
 
     # Treat this as a first run if it's been too long since the last run
     if not firstRun and time.time()-tPrev > tTimeout*60:
@@ -158,9 +156,9 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    doc = open('C:\\Python27\\Scripts\\Test Scores\\allstar.htm')
-    fullText = doc.readline()
-    doc.close()
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\switchover.htm')
+    #fullText = doc.readline()
+    #doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -327,11 +325,47 @@ def checkScores():
 
 #######################################
 ##
+##  Check Scores Wrapper
+##
+##  Processes all calls to checkScores() for error handling purposes. Also takes
+##  care of all refreshing-related behavior.
+##
+
+def checkScoresWrapper():
+
+    global root; global refreshRate; global teams;
+    
+    # Loop based on the desired refresh rate
+    root.after(refreshRate*1000, checkScoresWrapper)
+
+    try:
+        checkScores()
+    except:
+        logging.exception('CHECKSCORES ERROR')
+        logging.debug('Error circumstances to follow...')
+        logging.debug('firstRun = %s, numGames = %i', firstRun, numGames)
+        logging.debug('teams = %s', ', '.join(teams))
+        logging.debug('teamIDs = %s', ', '.join(map(str, teamIDs)))
+        logging.debug('scores = %s', ', '.join(scores))
+        logging.debug('goalFlags = %s', ', '.join(map(str, goalFlags)))
+        logging.debug('tracking = %s', ', '.join(map(str, tracking)))
+        logging.debug('timePeriod = %s', ', '.join(timePeriod))
+        logging.debug('gameStatus = %s', ', '.join(map(str, gameStatus)))
+        logging.debug('favorites = %s', ', '.join(map(str, favorites)))
+        #logging.debug('fullText (may not be up to date) = %s', fullText)
+        raise
+
+    return
+
+
+#######################################
+##
 ##  Initialize Scoreboard
 ##
 ##  Initializes the main layout elements of the scoreboard. Calls renderBox()
 ##  for assistance after determining the correct sizing of the board.
 ##
+
 def initializeBoard():
 
     global page; global numGames;
@@ -375,6 +409,7 @@ def initializeBoard():
 ##  Draws elements on the scoreboard for each game based on its
 ##  game number and position. Gets called by initializeBoard().
 ##
+
 def renderGame(gameNum):
 
     global page; global sp; global gh; global gw; global lw; global tw;
@@ -423,6 +458,7 @@ def renderGame(gameNum):
 ##  the first run of checkScores(). loadImages() and initializeBoard() must be
 ##  called (or have previously been called) prior to setTeams().
 ##
+
 def setTeams():
 
     global page; global teams; global teamIDs;
@@ -489,6 +525,7 @@ def setTeams():
 ##  Configures the score and period/time text based on the most current data.
 ##  Should be used (at the end of) every refresh cycle.
 ##
+
 def updateScoreboard():
 
     global page; global numGames; global gameStatus; global timePeriod
@@ -529,6 +566,7 @@ def updateScoreboard():
 ##  Lights the lamps (logo glows) when teams have scored, or resets them
 ##  to hidden otherwise.
 ##
+
 def toggleLamps():
 
     global page; global goalFlags; global abbrev; global teamIDs; global lamps;
@@ -553,6 +591,7 @@ def toggleLamps():
 ##  Displays drop shadows for teams being tracked for goal horns, or resets them
 ##  to hidden otherwise.
 ##
+
 def setShadows():
 
     global page; global tracking; global shadows;
@@ -575,6 +614,7 @@ def setShadows():
 ##
 ##  Displays the NHL Goal Horn Scoreboard logo
 ##
+
 def splashScreen():
 
     global page; global sp; global sw; global sh;
@@ -608,6 +648,7 @@ def splashScreen():
 ##  Loads the team logo images for the purpose of filling the scoreboard.
 ##  Also loads the goal lamp glow. Should only be used one time. 
 ##
+
 def loadImages():
 
     global thisDir;
@@ -657,6 +698,7 @@ def loadImages():
 ##  Sets the audio filenames for the goal horns of tracked teams.
 ##  Should only be used one time.
 ##
+    
 def loadHorns():
 
     global horns; global thisDir;
@@ -673,6 +715,7 @@ def loadHorns():
 ##  Determines the behavior of a mouse button click.
 ##  Triggered via Tkinter's bind capability.
 ##
+    
 def click(event):
 
     global tracking; global abbrev; global teamIDs;
@@ -704,6 +747,7 @@ def click(event):
 ##  Determine if a mouse event is valid (over a team logo) and returns the
 ##  corresponding index. Gets called by click(event) and release(event).
 ##
+
 def locateTeam(x, y):
 
     global sp; global lw; global gh
@@ -734,6 +778,7 @@ def locateTeam(x, y):
 ##
 ##  Retrieve the user's preferences from the configuration file
 ##
+
 def loadConfig():
 
     global thisDir; global configFile; global favorites;
@@ -784,7 +829,7 @@ def loadConfig():
     if 'WPG' in text: favorites.append(WPG)
     
     return
-    
+
     
 ####################################  MAIN  ####################################
     
@@ -799,11 +844,11 @@ page = Tkinter.Canvas(root, highlightthickness=0, background='white')
 loadConfig()
    
 # Begin checking for scores
-checkScores()
+checkScoresWrapper()
 
 # Tkinter event loop
 try:
     root.mainloop()
 except:
-    logging.exception('ERROR')
+    logging.exception('MAINLOOP ERROR')
     raise
