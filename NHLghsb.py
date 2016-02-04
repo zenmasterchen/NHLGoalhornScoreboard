@@ -158,9 +158,9 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\switchsame.htm')
-    #fullText = doc.readline()
-    #doc.close()
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\allstar.htm')
+    fullText = doc.readline()
+    doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -170,7 +170,7 @@ def checkScores():
         numGames = 0
         splashScreen()
         return
-    if len(gamesArray) != numGames and firstRun == False:
+    if len(gamesArray) != numGames and not firstRun:
         print 'New game(s) detected'
         logging.debug('New game(s) detected')
         firstRun = True
@@ -304,16 +304,19 @@ def checkScores():
             gameStatus[index] = 0
 
     # Detect team changes
-    checkSum = 0
-    for team in teams: checkSum += sum(ord(char) for char in team)
-    if checkSum != checkSumPrev and firstRun == False: firstRun = True
+    checkSum = sum(ord(char) for char in ''.join(teams))
+    if checkSum != checkSumPrev and not firstRun:
+        print 'New team(s) detected'
+        logging.debug('New team(s) detected')
+        firstRun = True
     checkSumPrev = checkSum
 
     # Apply appropriate changes to the scoreboard display        
     if firstRun == True:
         initializeBoard()
         setTeams()
-    toggleLamps()
+    else:
+        toggleLamps()
     updateScoreboard()
     
     # No longer a rookie
