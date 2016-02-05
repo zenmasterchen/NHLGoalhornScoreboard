@@ -14,7 +14,7 @@
 ## TO DO
 ## -----
 ## X CTRL+C to record error in log
-## ! Don't reset tracking upon timeout?
+## - Don't reset tracking upon timeout? Base on game status.
 ## - Readme
 ## X Blank-initialize variables for scope
 ## X Clean up to-do list
@@ -22,10 +22,13 @@
 ## X Robust enough rules for restart? (consider same number of games)
 ## X Log variables upon exception
 ##
-## - Print to log with logging instead of console
-## - Save to executable
-## ! Get all team horns
+## X Get all team horns
 ##
+## ! Overtime/shootout simplification! 
+##
+## W Reduce audio files sizes (play mp3s? Pyglet or pyMedia)
+## W Print to log with logging instead of console
+## W Save to executable
 ## W Rename to "Goal Horn Scoreboard?"
 ## W New icon: siren light
 ##
@@ -156,7 +159,7 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\switchover.htm')
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\SO.html')
     #fullText = doc.readline()
     #doc.close()
 
@@ -646,50 +649,25 @@ def splashScreen():
 ##  Load Images
 ##
 ##  Loads the team logo images for the purpose of filling the scoreboard.
-##  Also loads the goal lamp glow. Should only be used one time. 
+##  Also loads the goal lamp glow, logo drop shadow, and splash screen image.
+##  Should only be used one time. 
 ##
 
 def loadImages():
 
-    global thisDir;
+    global thisDir; global numTeams;
     global logoImages; global lampImage; global shadowImage; global splashImage;
 
     imageDirectory = thisDir+'\\Assets\\Images\\'
-    logoImages[ANA] = Tkinter.PhotoImage(file=imageDirectory+'ANA.gif')
-    logoImages[ARI] = Tkinter.PhotoImage(file=imageDirectory+'ARI.gif')
-    logoImages[BOS] = Tkinter.PhotoImage(file=imageDirectory+'BOS.gif')
-    logoImages[BUF] = Tkinter.PhotoImage(file=imageDirectory+'BUF.gif')
-    logoImages[CGY] = Tkinter.PhotoImage(file=imageDirectory+'CGY.gif')
-    logoImages[CAR] = Tkinter.PhotoImage(file=imageDirectory+'CAR.gif')
-    logoImages[CHI] = Tkinter.PhotoImage(file=imageDirectory+'CHI.gif')
-    logoImages[COL] = Tkinter.PhotoImage(file=imageDirectory+'COL.gif')
-    logoImages[CBJ] = Tkinter.PhotoImage(file=imageDirectory+'CBJ.gif')
-    logoImages[DAL] = Tkinter.PhotoImage(file=imageDirectory+'DAL.gif')
-    logoImages[DET] = Tkinter.PhotoImage(file=imageDirectory+'DET.gif')
-    logoImages[EDM] = Tkinter.PhotoImage(file=imageDirectory+'EDM.gif')
-    logoImages[FLA] = Tkinter.PhotoImage(file=imageDirectory+'FLA.gif')
-    logoImages[LAK] = Tkinter.PhotoImage(file=imageDirectory+'LAK.gif')
-    logoImages[MIN] = Tkinter.PhotoImage(file=imageDirectory+'MIN.gif')
-    logoImages[MTL] = Tkinter.PhotoImage(file=imageDirectory+'MTL.gif')
-    logoImages[NSH] = Tkinter.PhotoImage(file=imageDirectory+'NSH.gif')
-    logoImages[NJD] = Tkinter.PhotoImage(file=imageDirectory+'NJD.gif')
-    logoImages[NYI] = Tkinter.PhotoImage(file=imageDirectory+'NYI.gif')
-    logoImages[NYR] = Tkinter.PhotoImage(file=imageDirectory+'NYR.gif')
-    logoImages[OTT] = Tkinter.PhotoImage(file=imageDirectory+'OTT.gif')
-    logoImages[PHI] = Tkinter.PhotoImage(file=imageDirectory+'PHI.gif')
-    logoImages[PIT] = Tkinter.PhotoImage(file=imageDirectory+'PIT.gif')
-    logoImages[SJS] = Tkinter.PhotoImage(file=imageDirectory+'SJS.gif')
-    logoImages[STL] = Tkinter.PhotoImage(file=imageDirectory+'STL.gif')
-    logoImages[TBL] = Tkinter.PhotoImage(file=imageDirectory+'TBL.gif')
-    logoImages[TOR] = Tkinter.PhotoImage(file=imageDirectory+'TOR.gif')
-    logoImages[VAN] = Tkinter.PhotoImage(file=imageDirectory+'VAN.gif')
-    logoImages[WPG] = Tkinter.PhotoImage(file=imageDirectory+'WPG.gif')
-    logoImages[WSH] = Tkinter.PhotoImage(file=imageDirectory+'WSH.gif')
+    for index, team in enumerate(abbrev[:numTeams]):
+        logoImages[index] = Tkinter.PhotoImage(file=imageDirectory+team+'.gif')   
     logoImages[NHL] = Tkinter.PhotoImage(file=imageDirectory+'NHL.gif')
     lampImage = Tkinter.PhotoImage(file=imageDirectory+'lamp.gif')
     shadowImage = Tkinter.PhotoImage(file=imageDirectory+'shadow.gif')
     splashImage = Tkinter.PhotoImage(file=imageDirectory+'splash.gif')
-    
+
+    return
+
 
 #######################################
 ##
@@ -701,11 +679,15 @@ def loadImages():
     
 def loadHorns():
 
-    global horns; global thisDir;
+    global thisDir; global numTeams; global horns;
     
     hornDirectory = thisDir+'\\Assets\\Audio\\'
-    horns[COL] = hornDirectory+'colorado.wav'
-    horns[PIT] = hornDirectory+'pittsburgh.wav'
+    for index, team in enumerate(abbrev[:numTeams]):
+        horns[index] = hornDirectory+team+'.wav'
+    #horns[COL] = hornDirectory+'colorado.wav'
+    #horns[PIT] = hornDirectory+'pittsburgh.wav'
+
+    return
 
 
 #######################################
@@ -797,36 +779,9 @@ def loadConfig():
         return
 
     # Check for team abbreviations and add to favorites
-    if 'ANA' in text: favorites.append(ANA)
-    if 'ARI' in text: favorites.append(ARI)
-    if 'BOS' in text: favorites.append(BOS)
-    if 'BUF' in text: favorites.append(BUF)
-    if 'CGY' in text: favorites.append(CGY)
-    if 'CAR' in text: favorites.append(CAR)
-    if 'CHI' in text: favorites.append(CHI)
-    if 'COL' in text: favorites.append(COL)
-    if 'CBJ' in text: favorites.append(CBJ)
-    if 'DAL' in text: favorites.append(DAL)
-    if 'DET' in text: favorites.append(DET)
-    if 'EDM' in text: favorites.append(EDM)
-    if 'FLA' in text: favorites.append(FLA)
-    if 'LAK' in text: favorites.append(LAK)
-    if 'MIN' in text: favorites.append(MIN)
-    if 'MTL' in text: favorites.append(MTL)
-    if 'NSH' in text: favorites.append(NSH)
-    if 'NJD' in text: favorites.append(NJD)
-    if 'NYI' in text: favorites.append(NYI)
-    if 'NYR' in text: favorites.append(NYR)
-    if 'OTT' in text: favorites.append(OTT)
-    if 'PHI' in text: favorites.append(PHI)
-    if 'PIT' in text: favorites.append(PIT)
-    if 'SJS' in text: favorites.append(SJS)
-    if 'STL' in text: favorites.append(STL)
-    if 'TBL' in text: favorites.append(TBL)
-    if 'TOR' in text: favorites.append(TOR)
-    if 'VAN' in text: favorites.append(VAN)
-    if 'WSH' in text: favorites.append(WSH)
-    if 'WPG' in text: favorites.append(WPG)
+    for index, team in enumerate(abbrev):
+        if team in text:
+            favorites.append(index)
     
     return
 
