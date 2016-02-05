@@ -159,7 +159,7 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\SO.html')
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores5.htm')
     #fullText = doc.readline()
     #doc.close()
 
@@ -201,29 +201,13 @@ def checkScores():
         if game[0] == '=':
             game = game[1:]
         
-        # Detect overtime in progress and fix (known feed issue)
-        if '(-1' in game:
+        # Detect overtimes and shootouts in progress and fix (known feed issue)
+        if '(-1' in game:            
             game = game.replace('(-1','(')
             game = game.replace('0-','')
-
-            # ESPN reports time backwards in OT
-            OTtimeMarker = game.find('(')+1
-            OTorig = game[OTtimeMarker:OTtimeMarker+4]
-            OTmin = int(OTorig[0])
-            OTsec = int(OTorig[2:4])
-
-            # Subtract from 5:00      
-            OTmin = 5 - OTmin
-            if OTsec != 0:
-                OTmin -= 1
-            OTsec = 60 - OTsec
-            OTmin = str(OTmin)
-            if OTsec < 10:
-                OTsec = '0'+str(OTsec)
-            else:
-                OTsec = str(OTsec)
-
-            game = game.replace(OTorig,OTmin+':'+OTsec)     
+            OTmarker = game.find('(')+1
+            OTtime = game[OTmarker:OTmarker+5]
+            game = game.replace(OTtime, '')
 
         # Condense multi-word cities
         if game.find('New Jersey') != -1:
