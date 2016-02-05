@@ -15,7 +15,7 @@
 ## -----
 ## X CTRL+C to record error in log
 ## X Don't reset tracking upon timeout? Base on game status.
-## - Readme
+## ! Readme
 ## X Blank-initialize variables for scope
 ## X Clean up to-do list
 ##
@@ -24,7 +24,7 @@
 ##
 ## X Get all team horns
 ## X Overtime/shootout simplification
-## ! Make Boolean conditionals more pythonic
+## X Make Boolean conditionals more pythonic
 ##
 ## X Reduce audio files sizes
 ## - Print to log with logging instead of console
@@ -133,7 +133,7 @@ def checkScores():
 
 
     # Load assets
-    if firstRun == True:    
+    if firstRun:    
         loadImages()
         loadHorns()
 
@@ -179,7 +179,7 @@ def checkScores():
     numGames = len(gamesArray)
 
     # Initialize arrays to store game information
-    if firstRun == True:
+    if firstRun:
         teams = ['']*numGames*2
         teamIDs = ['-1']*numGames*2
         scores = ['0']*numGames*2
@@ -235,7 +235,7 @@ def checkScores():
                 print 'Goal scored by', abbrev[teamIDs[index*2]]
                 logging.info('Goal scored by %s', abbrev[teamIDs[index*2]])
                 goalFlags[index*2] = True
-                if tracking[index*2] == True:
+                if tracking[index*2]:
                     print 'Playing the goal horn for', abbrev[teamIDs[index*2]]
                     logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2]])
                     winsound.PlaySound(horns[teamIDs[index*2]], \
@@ -250,7 +250,7 @@ def checkScores():
                 print 'Goal scored by', abbrev[teamIDs[index*2+1]]
                 logging.info('Goal scored by %s', abbrev[teamIDs[index*2+1]])
                 goalFlags[index*2+1] = True
-                if tracking[index*2+1] == True:
+                if tracking[index*2+1]:
                     print 'Playing the goal horn for', abbrev[teamIDs[index*2+1]]
                     logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2+1]])
                     winsound.PlaySound(horns[teamIDs[index*2+1]], \
@@ -298,7 +298,7 @@ def checkScores():
     checkSumPrev = checkSum
 
     # Apply appropriate changes to the scoreboard display        
-    if firstRun == True:
+    if firstRun:
         initializeBoard()
         setTeams()
     else:
@@ -566,7 +566,7 @@ def toggleLamps():
 
     # Loop through the goal scored flags
     for index, flag in enumerate(goalFlags):
-        if flag == True:
+        if flag:
             page.itemconfig(lamps[index], state='normal')
         else:
             page.itemconfig(lamps[index], state='hidden')
@@ -593,7 +593,7 @@ def setShadows():
     for index, status in enumerate(tracking):
 
         # Set the shadows accordingly
-        if status == True: 
+        if status: 
             page.itemconfig(shadows[index], state='normal')
         else:
             page.itemconfig(shadows[index], state='hidden')
@@ -697,7 +697,7 @@ def click(event):
     if teamNum >= 0:
 
         # Toggle the tracking status of the clicked-on team
-        if tracking[teamNum] == False:
+        if not tracking[teamNum]:
             tracking[teamNum] = True
             print 'Now tracking', abbrev[teamIDs[teamNum]]
             logging.info('Now tracking %s', abbrev[teamIDs[teamNum]])
