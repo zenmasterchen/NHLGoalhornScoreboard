@@ -8,13 +8,13 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 02/03/16
+##  Last Revision: 02/05/16
 ##
 ##
 ## TO DO
 ## -----
 ## X CTRL+C to record error in log
-## - Don't reset tracking upon timeout? Base on game status.
+## X Don't reset tracking upon timeout? Base on game status.
 ## - Readme
 ## X Blank-initialize variables for scope
 ## X Clean up to-do list
@@ -23,14 +23,12 @@
 ## X Log variables upon exception
 ##
 ## X Get all team horns
+## X Overtime/shootout simplification
+## ! Make Boolean conditionals more pythonic
 ##
-## ! Overtime/shootout simplification! 
-##
-## W Reduce audio files sizes (play mp3s? Pyglet or pyMedia)
-## W Print to log with logging instead of console
-## W Save to executable
-## W Rename to "Goal Horn Scoreboard?"
-## W New icon: siren light
+## X Reduce audio files sizes
+## - Print to log with logging instead of console
+## - Save to executable
 ##
 
 
@@ -51,8 +49,9 @@ from datetime import datetime   #for debugging
 
 # Administrative information
 firstRun = True                     #first run flag
+timeout = False                     #delayed update flag
 refreshRate = 10                    #how often to update, in seconds
-checkSumPrev = 0
+checkSumPrev = 0                    #scoreboard switchover detection
 tPrev = 0                           #time of the last update, in seconds
 tTimeout = 30                       #timeout threshold, in minutes
 numTeams = 30                       #number of teams in the league
@@ -127,7 +126,7 @@ fullText = ''
 def checkScores():
 
     global URL; global fullText; global tPrev; global tTimeout; 
-    global firstRun; global numGames; global checkSumPrev;
+    global firstRun; global timeout; global numGames; global checkSumPrev;
     global timePeriod; global gameStatus; 
     global teams; global teamIDs; global scores; 
     global goalFlags; global tracking; global abbrev; global horns;
@@ -138,11 +137,13 @@ def checkScores():
         loadImages()
         loadHorns()
 
-    # Treat this as a first run if it's been too long since the last run
+    # Suppress goal horns and lamps if it's been too long since the last run
     if not firstRun and time.time()-tPrev > tTimeout*60:
-        print 'TIMEOUT - STARTING OVER'
-        logging.warning('TIMEOUT - STARTING OVER')
-        firstRun = True
+        print 'TIMEOUT'
+        logging.warning('TIMEOUT')
+        timeout = True
+    else:
+        timeout = False
     
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
@@ -159,9 +160,9 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores5.htm')
-    #fullText = doc.readline()
-    #doc.close()
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\SO.htm')
+    fullText = doc.readline()
+    doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -230,7 +231,7 @@ def checkScores():
             teams[index*2] = game[:game.find(' ')]
             game = game[game.find(' ')+1:]
             newScore = game[:game.find(' ')]
-            if newScore > scores[index*2] and not firstRun:
+            if newScore > scores[index*2] and not firstRun and not timeout:
                 print 'Goal scored by', abbrev[teamIDs[index*2]]
                 logging.info('Goal scored by %s', abbrev[teamIDs[index*2]])
                 goalFlags[index*2] = True
@@ -245,7 +246,7 @@ def checkScores():
             teams[index*2+1] = game[:game.find(' ')]
             game = game[game.find(' ')+1:]
             newScore = game[:game.find(' ')]
-            if newScore > scores[index*2+1] and not firstRun:
+            if newScore > scores[index*2+1] and not firstRun and not timeout:
                 print 'Goal scored by', abbrev[teamIDs[index*2+1]]
                 logging.info('Goal scored by %s', abbrev[teamIDs[index*2+1]])
                 goalFlags[index*2+1] = True
@@ -320,7 +321,11 @@ def checkScores():
 
 def checkScoresWrapper():
 
-    global root; global refreshRate; global teams;
+    global root; global refreshRate; global fullText;
+    global firstRun; global timeout; global Games
+    global teams; global teamIDs; global scores;
+    global goalFlag; global tracking;
+    global timePeriod; global gameStatus; global favorites;
     
     # Loop based on the desired refresh rate
     root.after(refreshRate*1000, checkScoresWrapper)
@@ -330,7 +335,8 @@ def checkScoresWrapper():
     except:
         logging.exception('CHECKSCORES ERROR')
         logging.debug('Error circumstances to follow...')
-        logging.debug('firstRun = %s, numGames = %i', firstRun, numGames)
+        logging.debug('firstRun = %s, timeout = %s, numGames = %i', \
+                      firstRun, timeout, numGames)
         logging.debug('teams = %s', ', '.join(teams))
         logging.debug('teamIDs = %s', ', '.join(map(str, teamIDs)))
         logging.debug('scores = %s', ', '.join(scores))
