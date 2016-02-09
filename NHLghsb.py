@@ -13,8 +13,14 @@
 ##
 ## TO DO
 ## -----
-## ! Readme
-## ! Save to executable
+## - Readme
+## \ Save to executable
+##   N Clean up imports (e.g. times)
+##   ! How to include font?
+##     - Point to file
+##     - Include the file and put instructions in README
+##     - Use an installer
+##   - Need to bundle the Visual C runtime DLL?
 ## - Print to log with logging instead of console
 ##
 
@@ -93,7 +99,7 @@ try: thisDir = os.path.dirname(os.path.abspath(__file__))
 except NameError: thisDir = os.path.dirname(os.path.abspath(sys.argv[0]))
 configFile = 'favorites.cfg'
 logFile = 'scoresheet.log'
-logging.basicConfig(filename=thisDir+'\\Assets\\'+logFile, filemode='w', \
+logging.basicConfig(filename=thisDir+'\\'+logFile, filemode='w', \
 format='%(asctime)s - %(message)s', datefmt='%I:%M:%S %p', level=logging.DEBUG,)
 URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
 fullText = ''
@@ -755,7 +761,7 @@ def loadConfig():
 
     # Read in a list of teams from the configuration file
     try:
-        doc = open(thisDir+'\\Assets\\'+configFile)
+        doc = open(thisDir+'\\'+configFile)
         text = doc.readline().upper()
         doc.close()
     except:

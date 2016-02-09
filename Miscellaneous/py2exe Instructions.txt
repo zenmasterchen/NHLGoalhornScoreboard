@@ -1,0 +1,13 @@
+Run py2exe from the command line: python setup.py py2exe
+
+Delete the build folder
+
+Copy the assets folder to the dist folder
+
+Edit and copy favorites.cfg to the dist folder
+
+Rename the .exe file to "NHL Goal Horn Scoreboard"
+
+Rename the dist folder to "NHL Goal Horn Scoreboard
+
+Archive the folder for distribution
