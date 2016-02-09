@@ -13,25 +13,9 @@
 ##
 ## TO DO
 ## -----
-## X CTRL+C to record error in log
-## X Don't reset tracking upon timeout? Base on game status.
 ## ! Readme
-## X Blank-initialize variables for scope
-## X Clean up to-do list
-##
-## X Robust enough rules for restart? (consider same number of games)
-## X Log variables upon exception
-##
-## X Get all team horns
-## X Overtime/shootout simplification
-## X Make Boolean conditionals more pythonic
-##
-## X Timeout detection with long URL open lag
-## X Goal horn order
-## 
-## X Reduce audio files sizes
-## - Print to log with logging instead of console
 ## ! Save to executable
+## - Print to log with logging instead of console
 ##
 
 
