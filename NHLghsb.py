@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 02/05/16
+##  Last Revision: 02/09/16
 ##
 ##
 ## TO DO
@@ -26,9 +26,12 @@
 ## X Overtime/shootout simplification
 ## X Make Boolean conditionals more pythonic
 ##
+## X Timeout detection with long URL open lag
+## X Goal horn order
+## 
 ## X Reduce audio files sizes
 ## - Print to log with logging instead of console
-## - Save to executable
+## ! Save to executable
 ##
 
 
@@ -154,15 +157,20 @@ def checkScores():
         logging.error('URL OPEN ERROR')
         return
     t1 = time.time()
-    if t1-t0 > 3:
+    lag = t1-t0
+    if lag > 3:
         print 'URL OPEN LAG =',round(t1-t0,2),'SECONDS'
         logging.warning('URL OPEN LAG = %0.2f SECONDS', t1-t0)
+        if lag > tTimeout*60:
+            print 'TIMEOUT'
+            logging.warning('TIMEOUT')
+            timeout = True
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    doc = open('C:\\Python27\\Scripts\\Test Scores\\SO.htm')
-    fullText = doc.readline()
-    doc.close()
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores5.htm')
+    #fullText = doc.readline()
+    #doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -186,6 +194,9 @@ def checkScores():
         goalFlags = [False]*numGames*2
         timePeriod = ['']*numGames
         gameStatus = [0]*numGames      
+
+    # Avoid playing multiple goal horns at once
+    hornPlayed = False
         
     # Loop through the games
     for index, game in enumerate(gamesArray):
@@ -235,11 +246,12 @@ def checkScores():
                 print 'Goal scored by', abbrev[teamIDs[index*2]]
                 logging.info('Goal scored by %s', abbrev[teamIDs[index*2]])
                 goalFlags[index*2] = True
-                if tracking[index*2]:
+                if tracking[index*2] and not hornPlayed:
                     print 'Playing the goal horn for', abbrev[teamIDs[index*2]]
                     logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2]])
                     winsound.PlaySound(horns[teamIDs[index*2]], \
                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
+                    hornPlayed = True
             scores[index*2] = newScore
             game = game[game.find(' ')+2:]
 
@@ -250,11 +262,12 @@ def checkScores():
                 print 'Goal scored by', abbrev[teamIDs[index*2+1]]
                 logging.info('Goal scored by %s', abbrev[teamIDs[index*2+1]])
                 goalFlags[index*2+1] = True
-                if tracking[index*2+1]:
+                if tracking[index*2+1] and not hornPlayed:
                     print 'Playing the goal horn for', abbrev[teamIDs[index*2+1]]
                     logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2+1]])
                     winsound.PlaySound(horns[teamIDs[index*2+1]], \
                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
+                    hornPlayed = True
             scores[index*2+1] = newScore
             
             game = game[game.find(' ')+1:]        
@@ -270,12 +283,10 @@ def checkScores():
             if '2ND OT' in game:
                 timePeriod[index] = timePeriod[index].replace('2ND OT','SO')
                 timePeriod[index] = timePeriod[index].replace('- SO','(SO)')
-                #timePeriod[index] = 'IN SO' #Can't do it this way because of FINAL
                 gameStatus[index] = 5
             elif 'OT' in game:
                 timePeriod[index] = timePeriod[index].replace('1ST OT','OT')
                 timePeriod[index] = timePeriod[index].replace('- OT','(OT)')
-                #timePeriod[index] = 'IN OT' #Can't do it this way because of FINAL
                 gameStatus[index] = 4
             if 'FINAL' in game: 
                 gameStatus[index] = 9
