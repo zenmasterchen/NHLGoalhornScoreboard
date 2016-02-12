@@ -10,17 +10,21 @@
 ##  Email: austin@austinandemily.com
 ##  Last Revision: 02/09/16
 ##
+##  Copyright (C) 2016 Austin Chen
+##
 ##
 ## TO DO
 ## -----
-## - Readme
+## W Readme
 ## \ Save to executable
 ##   N Clean up imports (e.g. times)
 ##   ! How to include font?
 ##     - Point to file
 ##     - Include the file and put instructions in README
-##     - Use an installer
-##   - Need to bundle the Visual C runtime DLL?
+##     ! Use an installer
+##   - Need to bundle the Visual C runtime DLL? Yup.
+##   X Include source (.py files)
+##   X License (put copyright info up top)
 ## - Print to log with logging instead of console
 ##
 
@@ -97,9 +101,12 @@ sh = 128                            #splash screen height
 # File information
 try: thisDir = os.path.dirname(os.path.abspath(__file__))
 except NameError: thisDir = os.path.dirname(os.path.abspath(sys.argv[0]))
+appDir = os.getenv('APPDATA')
+appDir = appDir+'\\NHL Goal Horn Scoreboard'
+if not os.path.exists(appDir): os.makedirs(appDir)
 configFile = 'favorites.cfg'
 logFile = 'scoresheet.log'
-logging.basicConfig(filename=thisDir+'\\'+logFile, filemode='w', \
+logging.basicConfig(filename=appDir+'\\'+logFile, filemode='w', \
 format='%(asctime)s - %(message)s', datefmt='%I:%M:%S %p', level=logging.DEBUG,)
 URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
 fullText = ''
