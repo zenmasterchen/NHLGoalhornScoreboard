@@ -16,16 +16,17 @@
 ## TO DO
 ## -----
 ## W Readme
-## \ Save to executable
+## X Save to executable
 ##   N Clean up imports (e.g. times)
-##   ! How to include font?
-##     - Point to file
-##     - Include the file and put instructions in README
-##     ! Use an installer
-##   - Need to bundle the Visual C runtime DLL? Yup.
+##   X How to include font?
+##     N Point to file
+##     N Include the file and put instructions in README
+##     X Use an installer
+##   X Bundle the Visual C runtime DLL
 ##   X Include source (.py files)
 ##   X License (put copyright info up top)
-## - Print to log with logging instead of console
+## W Print to log with logging instead of console
+## - Import to-do from Outlook task
 ##
 
 
@@ -36,6 +37,7 @@ import winsound                 #for playing wav files
 import time                     #for delays
 import logging                  #for debugging
 from urllib import urlopen      #for reading in webpage content
+from shutil import copyfile     #for high-level file operations
 from datetime import datetime   #for debugging
 
 
@@ -99,8 +101,8 @@ sw = 128                            #splash screen width
 sh = 128                            #splash screen height
 
 # File information
-try: thisDir = os.path.dirname(os.path.abspath(__file__))
-except NameError: thisDir = os.path.dirname(os.path.abspath(sys.argv[0]))
+try: progDir = os.path.dirname(os.path.abspath(__file__))
+except NameError: progDir = os.path.dirname(os.path.abspath(sys.argv[0]))
 appDir = os.getenv('APPDATA')
 appDir = appDir+'\\NHL Goal Horn Scoreboard'
 if not os.path.exists(appDir): os.makedirs(appDir)
@@ -653,10 +655,10 @@ def splashScreen():
 
 def loadImages():
 
-    global thisDir; global numTeams;
+    global progDir; global numTeams;
     global logoImages; global lampImage; global shadowImage; global splashImage;
 
-    imageDirectory = thisDir+'\\Assets\\Images\\'
+    imageDirectory = progDir+'\\Assets\\Images\\'
     for index, team in enumerate(abbrev[:numTeams]):
         logoImages[index] = Tkinter.PhotoImage(file=imageDirectory+team+'.gif')   
     logoImages[NHL] = Tkinter.PhotoImage(file=imageDirectory+'NHL.gif')
@@ -677,9 +679,9 @@ def loadImages():
     
 def loadHorns():
 
-    global thisDir; global numTeams; global horns;
+    global progDir; global numTeams; global horns;
     
-    hornDirectory = thisDir+'\\Assets\\Audio\\'
+    hornDirectory = progDir+'\\Assets\\Audio\\'
     for index, team in enumerate(abbrev[:numTeams]):
         horns[index] = hornDirectory+team+'.wav'
     #horns[COL] = hornDirectory+'colorado.wav'
@@ -761,19 +763,29 @@ def locateTeam(x, y):
 
 def loadConfig():
 
-    global thisDir; global configFile; global favorites;
+    global appDir; global progDir; global configFile; global favorites;
 
     # Reset the list of favorite teams
     favorites = []
 
     # Read in a list of teams from the configuration file
     try:
-        doc = open(thisDir+'\\'+configFile)
+        doc = open(appDir+'\\'+configFile)
         text = doc.readline().upper()
         doc.close()
+        print 'Favorites loaded'
+        logging.info('Favorites loaded')
     except:
-        print 'CONFIGURATION ERROR'
-        logging.error('CONFIGURATION ERROR')
+        print 'CONFIGURATION READ ERROR'
+        logging.error('CONFIGURATION READ ERROR')
+        try:
+            copyfile(progDir+'\\Assets\\Other\\template.cfg', \
+                     appDir+'\\favorites.cfg')
+            print 'Favorites created'
+            logging.info('Favorites created')
+        except:
+            print 'CONFIGURATION WRITE ERROR'
+            logging.error('CONFIGURATION WRITE ERROR')
         return
 
     # Check for team abbreviations and add to favorites
@@ -789,7 +801,7 @@ def loadConfig():
 # Tkinter root widget
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
-root.iconbitmap(thisDir+'\\Assets\\icon.ico')
+root.iconbitmap(progDir+'\\Assets\\icon.ico')
 root.bind('<Button-1>', click)
 page = Tkinter.Canvas(root, highlightthickness=0, background='white')
 
