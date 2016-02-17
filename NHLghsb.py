@@ -54,6 +54,7 @@ checkSumPrev = 0                    #scoreboard switchover detection
 tPrev = 0                           #time of the last update, in seconds
 tTimeout = 30                       #timeout threshold, in minutes
 numTeams = 30                       #number of teams in the league
+mute = False #NEW
 
 # Team IDs (DO NOT ALTER)
 ANA = 0; ARI = 1; BOS = 2; BUF = 3; CGY = 4; CAR = 5;
@@ -150,7 +151,8 @@ def checkScores():
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
     try:
-        fullText = urlopen(URL).read()
+        pass
+        #fullText = urlopen(URL).read()
     except:
         print 'URL OPEN ERROR'
         logging.error('URL OPEN ERROR')
@@ -167,9 +169,9 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\allstar.htm')
-    #fullText = doc.readline()
-    #doc.close()
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+    fullText = doc.readline()
+    doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -246,10 +248,14 @@ def checkScores():
                 logging.info('Goal scored by %s', abbrev[teamIDs[index*2]])
                 goalFlags[index*2] = True
                 if tracking[index*2] and not hornPlayed:
-                    print 'Playing the goal horn for', abbrev[teamIDs[index*2]]
-                    logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2]])
-                    winsound.PlaySound(horns[teamIDs[index*2]], \
-                                   winsound.SND_FILENAME | winsound.SND_ASYNC)
+                    if mute:
+                        print 'Skipping goal horn due to mute'
+                        logging.info('Skipping goal horn due to mute')
+                    else:
+                        print 'Playing the goal horn for', abbrev[teamIDs[index*2]]
+                        logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2]])
+                        winsound.PlaySound(horns[teamIDs[index*2]], \
+                                       winsound.SND_FILENAME | winsound.SND_ASYNC)
                     hornPlayed = True
             scores[index*2] = newScore
             game = game[game.find(' ')+2:]
@@ -262,10 +268,14 @@ def checkScores():
                 logging.info('Goal scored by %s', abbrev[teamIDs[index*2+1]])
                 goalFlags[index*2+1] = True
                 if tracking[index*2+1] and not hornPlayed:
-                    print 'Playing the goal horn for', abbrev[teamIDs[index*2+1]]
-                    logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2+1]])
-                    winsound.PlaySound(horns[teamIDs[index*2+1]], \
-                                   winsound.SND_FILENAME | winsound.SND_ASYNC)
+                    if mute:
+                        print 'Skipping goal horn due to mute'
+                        logging.info('Skipping goal horn due to mute')
+                    else:
+                        print 'Playing the goal horn for', abbrev[teamIDs[index*2+1]]
+                        logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2+1]])
+                        winsound.PlaySound(horns[teamIDs[index*2+1]], \
+                                       winsound.SND_FILENAME | winsound.SND_ASYNC)
                     hornPlayed = True
             scores[index*2+1] = newScore
             
@@ -722,6 +732,77 @@ def click(event):
     return
 
 
+
+
+
+def rightClick(event):
+
+    #global contextMenu;
+    global mute;
+    #global tracking; global abbrev; global teamIDs;
+
+
+    contextMenu = Tkinter.Menu(root, tearoff=0)
+    
+    # Check for a valid click
+    teamNum = locateTeam(event.x, event.y)
+    if teamNum >= 0:
+
+        
+        ## Toggle the tracking status of the clicked-on team
+        if not tracking[teamNum]:
+            contextMenu.add_command(label='Add to favorites')
+    
+            #tracking[teamNum] = True
+            #print 'Now tracking', abbrev[teamIDs[teamNum]]
+            #logging.info('Now tracking %s', abbrev[teamIDs[teamNum]])
+        else:
+            contextMenu.add_command(label='Remove from favorites')
+            
+            #tracking[teamNum] = False
+            #print 'No longer tracking', abbrev[teamIDs[teamNum]]
+            #logging.info('No longer tracking %s', abbrev[teamIDs[teamNum]])
+
+
+        contextMenu.add_separator()
+
+        # Update the team's drop shadow for user feedback
+        setShadows()
+
+    
+    if mute:
+        contextMenu.add_command(label='Unmute', command=toggleMute)
+    else:
+        contextMenu.add_command(label='Mute', command=toggleMute)
+
+    
+    contextMenu.add_command(label='Configure favorites')
+
+
+    # Display the context menu
+    contextMenu.post(event.x_root, event.y_root)
+    
+    return
+
+
+
+def toggleMute():
+
+    global mute;
+
+    if mute:
+        mute = False
+        print('Mute off')
+        logging.info('Mute off')
+    else:
+        mute = True
+        print('Mute on')
+        logging.info('Mute on')
+
+    return
+
+
+
 #######################################
 ##
 ##  Locate Team
@@ -798,11 +879,12 @@ def loadConfig():
     
 ####################################  MAIN  ####################################
     
-# Tkinter root widget
+# Tkinter-related (root widget, etc.)
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
 root.iconbitmap(progDir+'\\Assets\\icon.ico')
 root.bind('<Button-1>', click)
+root.bind('<Button-3>', rightClick)
 page = Tkinter.Canvas(root, highlightthickness=0, background='white')
 
 # Load user data
