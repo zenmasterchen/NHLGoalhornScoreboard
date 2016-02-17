@@ -98,8 +98,8 @@ gw = 310                            #game width, inner
 lw = 100                            #logo width
 tw = 70                             #text width
 sw = 128                            #splash screen width
-sh = 128                            #splash screen height
-
+sh = 146                            #splash screen height
+    
 # File information
 try: progDir = os.path.dirname(os.path.abspath(__file__))
 except NameError: progDir = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -167,7 +167,7 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores5.htm')
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\allstar.htm')
     #fullText = doc.readline()
     #doc.close()
 
@@ -627,13 +627,13 @@ def splashScreen():
     page.delete('all')
 
     # Create an appropriate layout    
-    pageWidth = sp + sw + sp
-    pageHeight = sp + sh + sp
+    pageWidth = sp*1.5 + sw + sp*1.5
+    pageHeight = sp*1.5 + sh + sp*1.5
     page.config(width=pageWidth, height=pageHeight)
 
     # Draw the image
-    x1 = sp+sw/2
-    y1 = sp+sh/2
+    x1 = sp*1.5+sw/2
+    y1 = sp*1.5+sh/2
     splash = page.create_image(x1, y1, anchor='center', image=splashImage)
     page.pack()
     
