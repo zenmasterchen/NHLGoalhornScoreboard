@@ -109,7 +109,7 @@ appDir = appDir+'\\NHL Goal Horn Scoreboard'
 if not os.path.exists(appDir): os.makedirs(appDir)
 configFile = 'favorites.cfg'
 logFile = 'scoresheet.log'
-logging.basicConfig(filename=appDir+'\\'+logFile, filemode='w', \
+logging.basicConfig(filename=appDir+'\\'+logFile, filemode='w+', \
 format='%(asctime)s - %(message)s', datefmt='%I:%M:%S %p', level=logging.DEBUG,)
 URL = 'http://sports.espn.go.com/nhl/bottomline/scores'
 fullText = ''
@@ -249,8 +249,8 @@ def checkScores():
                 goalFlags[index*2] = True
                 if tracking[index*2] and not hornPlayed:
                     if mute:
-                        print 'Skipping goal horn due to mute'
-                        logging.info('Skipping goal horn due to mute')
+                        print 'Suppressing goal horn due to mute'
+                        logging.debug('Skipping goal horn due to mute')
                     else:
                         print 'Playing the goal horn for', abbrev[teamIDs[index*2]]
                         logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2]])
@@ -269,8 +269,8 @@ def checkScores():
                 goalFlags[index*2+1] = True
                 if tracking[index*2+1] and not hornPlayed:
                     if mute:
-                        print 'Skipping goal horn due to mute'
-                        logging.info('Skipping goal horn due to mute')
+                        print 'Suppressing goal horn due to mute'
+                        logging.debug('Skipping goal horn due to mute')
                     else:
                         print 'Playing the goal horn for', abbrev[teamIDs[index*2+1]]
                         logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2+1]])
@@ -702,29 +702,29 @@ def loadHorns():
 
 #######################################
 ##
-##  Click
+##  Left Click
 ##
-##  Determines the behavior of a mouse button click.
+##  Determines the behavior of a left mouse button click.
 ##  Triggered via Tkinter's bind capability.
 ##
     
-def click(event):
+def leftClick(event):
 
     global tracking; global abbrev; global teamIDs;
 
-    # Check for a valid click
+    # Check for a valid click on a team
     teamNum = locateTeam(event.x, event.y)
     if teamNum >= 0:
 
         # Toggle the tracking status of the clicked-on team
         if not tracking[teamNum]:
             tracking[teamNum] = True
-            print 'Now tracking', abbrev[teamIDs[teamNum]]
-            logging.info('Now tracking %s', abbrev[teamIDs[teamNum]])
+            print 'Started tracking', abbrev[teamIDs[teamNum]]
+            logging.info('Started tracking %s', abbrev[teamIDs[teamNum]])
         else:
             tracking[teamNum] = False
-            print 'No longer tracking', abbrev[teamIDs[teamNum]]
-            logging.info('No longer tracking %s', abbrev[teamIDs[teamNum]])
+            print 'Stopped tracking', abbrev[teamIDs[teamNum]]
+            logging.info('Stopped tracking %s', abbrev[teamIDs[teamNum]])
 
         # Update the team's drop shadow for user feedback
         setShadows()
@@ -734,70 +734,108 @@ def click(event):
 
 
 
+
+#######################################
+##
+##  Right Click
+##
+##  Determines the behavior of a right mouse button click.
+##  Triggered via Tkinter's bind capability.
+##
 
 def rightClick(event):
 
-    #global contextMenu;
-    global mute;
-    #global tracking; global abbrev; global teamIDs;
+    global mute; global teamIDs; global favorites;
 
-
-    contextMenu = Tkinter.Menu(root, tearoff=0)
+    menu = Tkinter.Menu(root, tearoff=0)
     
-    # Check for a valid click
+    # Check for a valid click on a team
     teamNum = locateTeam(event.x, event.y)
     if teamNum >= 0:
 
-        
-        ## Toggle the tracking status of the clicked-on team
-        if not tracking[teamNum]:
-            contextMenu.add_command(label='Add to favorites')
-    
-            #tracking[teamNum] = True
-            #print 'Now tracking', abbrev[teamIDs[teamNum]]
-            #logging.info('Now tracking %s', abbrev[teamIDs[teamNum]])
+        # Toggle the favorite status of the clicked-on team
+        if teamIDs[teamNum] not in favorites:
+            menu.add_command(label='Add as favorite', \
+                             command=lambda: toggleFavorite(teamIDs[teamNum]))
         else:
-            contextMenu.add_command(label='Remove from favorites')
-            
-            #tracking[teamNum] = False
-            #print 'No longer tracking', abbrev[teamIDs[teamNum]]
-            #logging.info('No longer tracking %s', abbrev[teamIDs[teamNum]])
+            menu.add_command(label='Remove as favorite', \
+                             command=lambda: toggleFavorite(teamIDs[teamNum]))            
+        menu.add_separator()  
 
-
-        contextMenu.add_separator()
-
-        # Update the team's drop shadow for user feedback
-        setShadows()
-
-    
-    if mute:
-        contextMenu.add_command(label='Unmute', command=toggleMute)
-    else:
-        contextMenu.add_command(label='Mute', command=toggleMute)
-
-    
-    contextMenu.add_command(label='Configure favorites')
-
+    menu.add_checkbutton(label='Mute', command=toggleMute)
+    menu.add_checkbutton(label='Debug mode')
+    menu.add_command(label='Configure favorites')
 
     # Display the context menu
-    contextMenu.post(event.x_root, event.y_root)
+    menu.post(event.x_root, event.y_root)
     
     return
 
 
 
+def toggleFavorite(teamID):
+
+    global favorites; global abbrev; global teamIDs; global tracking;
+
+    # Add as favorite
+    if teamID not in favorites:
+        favorites.append(teamID)
+        print 'Added', abbrev[teamID], 'as favorite'
+        logging.info('Added %s as favorite', abbrev[teamID])
+        saveConfig()
+
+        # Start tracking
+        if teamID in teamIDs and not tracking[teamIDs.index(teamID)]:
+            tracking[teamIDs.index(teamID)] = True
+            print 'Started tracking', abbrev[teamID]
+            logging.info('Started tracking %s', abbrev[teamID])
+            setShadows()
+
+    # Remove as favorite
+    else:
+        favorites.remove(teamID)
+        print 'Removed', abbrev[teamID], 'as favorite'
+        logging.info('Removed %s as favorite', abbrev[teamID])
+        saveConfig()
+
+        # Stop tracking
+        if teamID in teamIDs and tracking[teamIDs.index(teamID)]:
+            tracking[teamIDs.index(teamID)] = False
+            print 'Stopped tracking', abbrev[teamID]
+            logging.info('Stopped tracking %s', abbrev[teamID])
+            setShadows()            
+
+    return
+
+
+def toggleDebug():
+    #list.append
+    #list.pop
+    return
+
+
+
+#######################################
+##
+##  Toggle Mute
+##
+##  Switches the global mute state. Gets called by rightClick(event).
+##
+
 def toggleMute():
 
-    global mute;
+    global mute; global root;
 
     if mute:
         mute = False
         print('Mute off')
         logging.info('Mute off')
+        root.wm_title('NHL Goal Horn Scoreboard')
     else:
         mute = True
         print('Mute on')
         logging.info('Mute on')
+        root.wm_title('NHL Goal Horn Scoreboard (Muted)')
 
     return
 
@@ -808,7 +846,7 @@ def toggleMute():
 ##  Locate Team
 ##
 ##  Determine if a mouse event is valid (over a team logo) and returns the
-##  corresponding index. Gets called by click(event) and release(event).
+##  corresponding index. Gets called by leftClick(event).
 ##
 
 def locateTeam(x, y):
@@ -851,22 +889,17 @@ def loadConfig():
 
     # Read in a list of teams from the configuration file
     try:
-        doc = open(appDir+'\\'+configFile)
+        doc = open(appDir+'\\'+configFile, 'r+')
         text = doc.readline().upper()
         doc.close()
         print 'Favorites loaded'
         logging.info('Favorites loaded')
     except:
         print 'CONFIGURATION READ ERROR'
+        print 'Creating favorites'
         logging.error('CONFIGURATION READ ERROR')
-        try:
-            copyfile(progDir+'\\Assets\\Other\\template.cfg', \
-                     appDir+'\\favorites.cfg')
-            print 'Favorites created'
-            logging.info('Favorites created')
-        except:
-            print 'CONFIGURATION WRITE ERROR'
-            logging.error('CONFIGURATION WRITE ERROR')
+        logging.info('Creating favorites')
+        saveConfig()
         return
 
     # Check for team abbreviations and add to favorites
@@ -876,6 +909,47 @@ def loadConfig():
     
     return
 
+
+#######################################
+##
+##  Save Configuration Information
+##
+##  Save the user's preferences to the configuration file
+##
+
+
+def saveConfig():
+
+    global progDir; global appDir; global configFile;
+    global favorites; global abbrev;
+    
+    try:
+        # Read in the template
+        template = open(progDir+'\\Assets\\Other\\template.cfg', 'r+')
+        configText = template.readlines()
+        template.close()
+
+        # Compile the list of favorites
+        if len(favorites) > 0:
+            favoritesText = '['
+            for teamID in favorites:
+                favoritesText += abbrev[teamID]+', '
+            configText[0] = favoritesText[:-2]+']\n'
+
+        # Write to the configuration favorites
+        doc = open(appDir+'\\favorites.cfg', 'w+')
+        doc.writelines(configText)
+        doc.close()
+                     
+        print 'Favorites saved'
+        logging.info('Favorites saved')
+        
+    except:
+        print 'CONFIGURATION WRITE ERROR'
+        logging.error('CONFIGURATION WRITE ERROR')
+        
+    return
+
     
 ####################################  MAIN  ####################################
     
@@ -883,7 +957,7 @@ def loadConfig():
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
 root.iconbitmap(progDir+'\\Assets\\icon.ico')
-root.bind('<Button-1>', click)
+root.bind('<Button-1>', leftClick)
 root.bind('<Button-3>', rightClick)
 page = Tkinter.Canvas(root, highlightthickness=0, background='white')
 
