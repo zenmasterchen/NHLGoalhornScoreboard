@@ -38,7 +38,6 @@ import time                     #for delays
 import logging                  #for debugging
 from urllib import urlopen      #for reading in webpage content
 from shutil import copyfile     #for high-level file operations
-from datetime import datetime   #for debugging
 
 
 ################################################################################
@@ -55,6 +54,7 @@ tPrev = 0                           #time of the last update, in seconds
 tTimeout = 30                       #timeout threshold, in minutes
 numTeams = 30                       #number of teams in the league
 mute = False #NEW
+debug = False #NEW
 
 # Team IDs (DO NOT ALTER)
 ANA = 0; ARI = 1; BOS = 2; BUF = 3; CGY = 4; CAR = 5;
@@ -100,6 +100,8 @@ lw = 100                            #logo width
 tw = 70                             #text width
 sw = 128                            #splash screen width
 sh = 146                            #splash screen height
+pageWidth = 0 #NEW
+pageHeight = 0 #NEW
     
 # File information
 try: progDir = os.path.dirname(os.path.abspath(__file__))
@@ -142,8 +144,7 @@ def checkScores():
 
     # Suppress goal horns and lamps if it's been too long since the last run
     if not firstRun and time.time()-tPrev > tTimeout*60:
-        print 'TIMEOUT'
-        logging.warning('TIMEOUT')
+        printHandler('TIMEOUT', 'warning')
         timeout = True
     else:
         timeout = False
@@ -151,20 +152,17 @@ def checkScores():
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
     try:
-        pass
-        #fullText = urlopen(URL).read()
+        #pass
+        fullText = urlopen(URL).read()
     except:
-        print 'URL OPEN ERROR'
-        logging.error('URL OPEN ERROR')
+        printHandler('URL OPEN ERROR', 'error')
         return
     t1 = time.time()
     lag = t1-t0
     if lag > 3:
-        print 'URL OPEN LAG =',round(t1-t0,2),'SECONDS'
-        logging.warning('URL OPEN LAG = %0.2f SECONDS', t1-t0)
+        printHandler('URL OPEN LAG = '+str(round(t1-t0, 2))+' SECONDS', 'warning')
         if lag > tTimeout*60:
-            print 'TIMEOUT'
-            logging.warning('TIMEOUT')
+            printHandler('TIMEOUT', 'warning')
             timeout = True
     tPrev = t1
     
@@ -176,14 +174,12 @@ def checkScores():
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
     if len(gamesArray) == 0:
-        print 'No game(s) detected'
-        logging.debug('No game(s) detected')
+        printHandler('No game(s) detected', 'debug')
         numGames = 0
         splashScreen()
         return
     if len(gamesArray) != numGames and not firstRun:
-        print 'New game(s) detected'
-        logging.debug('New game(s) detected')
+        printHandler('New game(s) detected', 'debug')
         firstRun = True
     numGames = len(gamesArray)
 
@@ -244,16 +240,13 @@ def checkScores():
             game = game[game.find(' ')+1:]
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2] and not firstRun and not timeout:
-                print 'Goal scored by', abbrev[teamIDs[index*2]]
-                logging.info('Goal scored by %s', abbrev[teamIDs[index*2]])
+                printHandler('Goal scored by '+abbrev[teamIDs[index*2]], 'info')
                 goalFlags[index*2] = True
                 if tracking[index*2] and not hornPlayed:
                     if mute:
-                        print 'Suppressing goal horn due to mute'
-                        logging.debug('Skipping goal horn due to mute')
+                        printHandler('Suppressing goal horn due to mute', 'debug')
                     else:
-                        print 'Playing the goal horn for', abbrev[teamIDs[index*2]]
-                        logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2]])
+                        printHandler('Playing the goal horn for '+abbrev[teamIDs[index*2]], 'info')
                         winsound.PlaySound(horns[teamIDs[index*2]], \
                                        winsound.SND_FILENAME | winsound.SND_ASYNC)
                     hornPlayed = True
@@ -264,16 +257,13 @@ def checkScores():
             game = game[game.find(' ')+1:]
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2+1] and not firstRun and not timeout:
-                print 'Goal scored by', abbrev[teamIDs[index*2+1]]
-                logging.info('Goal scored by %s', abbrev[teamIDs[index*2+1]])
+                printHandler('Goal scored by '+abbrev[teamIDs[index*2+1]], 'info')
                 goalFlags[index*2+1] = True
                 if tracking[index*2+1] and not hornPlayed:
                     if mute:
-                        print 'Suppressing goal horn due to mute'
-                        logging.debug('Skipping goal horn due to mute')
+                        printHandler('Suppressing goal horn due to mute', 'debug')
                     else:
-                        print 'Playing the goal horn for', abbrev[teamIDs[index*2+1]]
-                        logging.info('Playing the goal horn for %s', abbrev[teamIDs[index*2+1]])
+                        printHandler('Playing the goal horn for '+abbrev[teamIDs[index*2+1]], 'info')
                         winsound.PlaySound(horns[teamIDs[index*2+1]], \
                                        winsound.SND_FILENAME | winsound.SND_ASYNC)
                     hornPlayed = True
@@ -312,8 +302,7 @@ def checkScores():
     # Detect team changes
     checkSum = sum(ord(char) for char in ''.join(teams))
     if checkSum != checkSumPrev and not firstRun:
-        print 'New team(s) detected'
-        logging.debug('New team(s) detected')
+        printHandler('New team(s) detected', 'debug')
         firstRun = True
     checkSumPrev = checkSum
 
@@ -353,7 +342,7 @@ def checkScoresWrapper():
     try:
         checkScores()
     except:
-        logging.exception('CHECKSCORES ERROR')
+        printHandler('CHECKSCORES ERROR', 'exception')
         logging.debug('Error circumstances to follow...')
         logging.debug('firstRun = %s, timeout = %s, numGames = %i', \
                       firstRun, timeout, numGames)
@@ -382,7 +371,7 @@ def checkScoresWrapper():
 def initializeBoard():
 
     global page; global numGames;
-    global sp; global gw; global gh;
+    global sp; global gw; global gh; global pageWidth; global pageHeight;
     global scoreText; global periodText; global timeText;
     global teamLogos; global lamps; global shadows;
 
@@ -409,8 +398,7 @@ def initializeBoard():
     page.pack()
 
     # Debug text
-    print 'Scoreboard initialized'
-    logging.info('Scoreboard initialized')
+    printHandler('Scoreboard initialized', 'info')
     
     return
 
@@ -525,8 +513,7 @@ def setTeams():
     setShadows()
 
     # Debug text
-    print 'Teams set'
-    logging.info('Teams set')
+    printHandler('Teams set', 'info')
 
     return
 
@@ -549,9 +536,9 @@ def updateScoreboard():
         
         # Games not yet started (0)
         if gameStatus[gameNum] == 0:
-            time = timePeriod[gameNum]
-            if 'ET' in time:
-                time = time[0:len(time)-3]
+            gameTime = timePeriod[gameNum]
+            if 'ET' in gameTime:
+                gameTime = gameTime[0:len(gameTime)-3]
             page.itemconfig(periodText[gameNum], text='')
             page.itemconfig(scoreText[gameNum], text='')  
             page.itemconfig(timeText[gameNum], text=time)
@@ -564,10 +551,9 @@ def updateScoreboard():
             page.itemconfig(timeText[gameNum], text='')
             
     # Debug text
-    timeNow = datetime.now()
-    updateTime = str(timeNow.hour)+':'+str(timeNow.minute).zfill(2)+':'+str(timeNow.second).zfill(2)
-    print 'Scoreboard updated: '+updateTime
-    logging.info('Scoreboard updated')
+    timeNow = time.localtime()
+    updateTime = time.strftime('%I:%M:%S %p')
+    printHandler('Scoreboard updated at '+updateTime, 'info')
 
     return
 
@@ -648,8 +634,7 @@ def splashScreen():
     page.pack()
     
     # Debug text
-    print 'Splash screen displayed'
-    logging.info('Splash screen displayed')
+    printHandler('Splash screen displayed', 'info')
 
     return
 
@@ -694,8 +679,6 @@ def loadHorns():
     hornDirectory = progDir+'\\Assets\\Audio\\'
     for index, team in enumerate(abbrev[:numTeams]):
         horns[index] = hornDirectory+team+'.wav'
-    #horns[COL] = hornDirectory+'colorado.wav'
-    #horns[PIT] = hornDirectory+'pittsburgh.wav'
 
     return
 
@@ -719,20 +702,15 @@ def leftClick(event):
         # Toggle the tracking status of the clicked-on team
         if not tracking[teamNum]:
             tracking[teamNum] = True
-            print 'Started tracking', abbrev[teamIDs[teamNum]]
-            logging.info('Started tracking %s', abbrev[teamIDs[teamNum]])
+            printHandler('Started tracking '+abbrev[teamIDs[teamNum]], 'info')
         else:
             tracking[teamNum] = False
-            print 'Stopped tracking', abbrev[teamIDs[teamNum]]
-            logging.info('Stopped tracking %s', abbrev[teamIDs[teamNum]])
+            printHandler('Stopped tracking '+abbrev[teamIDs[teamNum]], 'info')
 
         # Update the team's drop shadow for user feedback
         setShadows()
 
     return
-
-
-
 
 
 #######################################
@@ -745,8 +723,12 @@ def leftClick(event):
 
 def rightClick(event):
 
+    global root; global page; global menu;
     global mute; global teamIDs; global favorites;
 
+    # Overwrite the previous context menu
+    if menu.winfo_exists():
+        menu.destroy()            
     menu = Tkinter.Menu(root, tearoff=0)
     
     # Check for a valid click on a team
@@ -763,8 +745,8 @@ def rightClick(event):
         menu.add_separator()  
 
     menu.add_checkbutton(label='Mute', command=toggleMute)
-    menu.add_checkbutton(label='Debug mode')
-    menu.add_command(label='Configure favorites')
+    menu.add_checkbutton(label='Debug mode', command=toggleDebug) ##TODO
+    menu.add_command(label='Configure favorites') ##TODO
 
     # Display the context menu
     menu.post(event.x_root, event.y_root)
@@ -773,6 +755,104 @@ def rightClick(event):
 
 
 
+##printHandler, logHandler, debugHandler
+def printHandler(string, level):
+
+    try:
+        #print to console
+        print string
+
+        #log
+        if level.lower == 'info': logging.info(string)
+        elif level.lower == 'debug': logging.debug(string)
+        elif level.lower == 'warning': logging.warning(string)
+        elif level.lower == 'error': logging.error(string)
+        elif level.lower == 'critical': logging.critical(string)
+        elif level.lower == 'exception':
+            logging.exception(string)
+            return
+        else: logging.info(string)
+
+        #debug
+        #list.pop
+        #list.insert(0, string)
+
+        
+    except:
+        pass
+
+    return
+
+
+
+# Layout, use junk strings first
+# Gather last 10 print strings in a list
+# All print strings? Or skip URL-related?
+def toggleDebug():
+
+    global debug;
+    global page; global pageWidth; global pageHeight; global sp; global dh;
+
+    numLines = 10
+    dh = sp*(numLines+0.5) #debug height
+    th = 10 #text height
+
+    if debug:
+        debug = False
+        printHandler('Debug mode off', 'debug')
+
+        pageHeight -= sp+dh
+        page.config(width=pageWidth, height=pageHeight)
+        
+    else:
+        debug = True
+        printHandler('Debug mode on', 'debug')
+
+        # Create an appropriate layout
+        debugTop = pageHeight
+        pageHeight += sp+dh
+        page.config(width=pageWidth, height=pageHeight)
+
+        # Draw line
+        line = page.create_line(0, debugTop, pageWidth, debugTop, fill='#BBBBBB')
+
+        # Text
+        x = pageWidth/2
+        y = debugTop+sp+th/2
+        for line in test:    
+            debugLine = page.create_text(x, y, justify='center', font=('TradeGothic-Light',10), fill='#333333')
+            page.itemconfig(debugLine, text=line) #move this
+            y += sp
+    
+    return
+
+
+
+def updateDebug():
+    
+    test = ['Favorites loaded', \
+            'Scoreboard initialized', \
+            'Teams set', \
+            'Scoreboard updated at 15:17:33', \
+            'Debug mode on', \
+            'Scoreboard updated at 15:17:43', \
+            'Scoreboard updated at 15:17:53', \
+            'Scoreboard updated at 15:18:03', \
+            'Scoreboard updated at 15:18:13', \
+            'Scoreboard updated at 15:18:23']
+
+    
+
+    return
+
+
+#######################################
+##
+##  Toggle Favorite
+##
+##  Adds or removes a team from favorites. Gets called by rightClick(event).
+##
+
 def toggleFavorite(teamID):
 
     global favorites; global abbrev; global teamIDs; global tracking;
@@ -780,39 +860,28 @@ def toggleFavorite(teamID):
     # Add as favorite
     if teamID not in favorites:
         favorites.append(teamID)
-        print 'Added', abbrev[teamID], 'as favorite'
-        logging.info('Added %s as favorite', abbrev[teamID])
+        printHandler('Added '+abbrev[teamID]+' as favorite', 'info')
         saveConfig()
 
         # Start tracking
         if teamID in teamIDs and not tracking[teamIDs.index(teamID)]:
             tracking[teamIDs.index(teamID)] = True
-            print 'Started tracking', abbrev[teamID]
-            logging.info('Started tracking %s', abbrev[teamID])
+            printHandler('Started tracking '+abbrev[teamID], 'info')
             setShadows()
 
     # Remove as favorite
     else:
         favorites.remove(teamID)
-        print 'Removed', abbrev[teamID], 'as favorite'
-        logging.info('Removed %s as favorite', abbrev[teamID])
+        printHandler('Removed '+abbrev[teamID]+' as favorite', 'info')
         saveConfig()
 
         # Stop tracking
         if teamID in teamIDs and tracking[teamIDs.index(teamID)]:
             tracking[teamIDs.index(teamID)] = False
-            print 'Stopped tracking', abbrev[teamID]
-            logging.info('Stopped tracking %s', abbrev[teamID])
+            printHandler('Stopped tracking '+abbrev[teamID], 'info')
             setShadows()            
 
     return
-
-
-def toggleDebug():
-    #list.append
-    #list.pop
-    return
-
 
 
 #######################################
@@ -828,17 +897,14 @@ def toggleMute():
 
     if mute:
         mute = False
-        print('Mute off')
-        logging.info('Mute off')
+        printHandler('Mute off', 'info')
         root.wm_title('NHL Goal Horn Scoreboard')
     else:
         mute = True
-        print('Mute on')
-        logging.info('Mute on')
+        printHandler('Mute on', 'info')
         root.wm_title('NHL Goal Horn Scoreboard (Muted)')
 
     return
-
 
 
 #######################################
@@ -892,13 +958,10 @@ def loadConfig():
         doc = open(appDir+'\\'+configFile, 'r+')
         text = doc.readline().upper()
         doc.close()
-        print 'Favorites loaded'
-        logging.info('Favorites loaded')
+        printHandler('Favorites loaded', 'info')
     except:
-        print 'CONFIGURATION READ ERROR'
-        print 'Creating favorites'
-        logging.error('CONFIGURATION READ ERROR')
-        logging.info('Creating favorites')
+        printHandler('CONFIGURATION READ ERROR', 'error')
+        printHandler('Creating favorites', 'info')
         saveConfig()
         return
 
@@ -941,12 +1004,10 @@ def saveConfig():
         doc.writelines(configText)
         doc.close()
                      
-        print 'Favorites saved'
-        logging.info('Favorites saved')
+        printHandler('Favorites saved', 'info')
         
     except:
-        print 'CONFIGURATION WRITE ERROR'
-        logging.error('CONFIGURATION WRITE ERROR')
+        printHandler('CONFIGURATION WRITE ERROR', 'error')
         
     return
 
@@ -957,9 +1018,11 @@ def saveConfig():
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
 root.iconbitmap(progDir+'\\Assets\\icon.ico')
+root.resizable(width=False, height=False)
 root.bind('<Button-1>', leftClick)
 root.bind('<Button-3>', rightClick)
 page = Tkinter.Canvas(root, highlightthickness=0, background='white')
+menu = Tkinter.Menu(root, tearoff=0)
 
 # Load user data
 loadConfig()
@@ -971,5 +1034,5 @@ checkScoresWrapper()
 try:
     root.mainloop()
 except:
-    logging.exception('MAINLOOP ERROR')
+    printHandler('MAINLOOP ERROR', 'exception')
     raise
