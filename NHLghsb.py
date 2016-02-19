@@ -82,9 +82,9 @@
 ## X Import to-do from Outlook task
 ##
 ## X Rearrange function order
-## ! Lamp animation (test in Photoshop 15 frames)
-## W Add 'small' size for 768px height displays (or bring back multiple columns)
-## W Favorites selection (see email)
+## ! Lamp animation: start with 2 frames, then 10 frames
+## - Add 'small' size for 768px height displays or bring back multiple columns)
+## - Favorites selection (see email)
 ##
 ## W Change refresh rate to 15s, lag limit to 5s
 ## W Instructions (display when scoresheet/favorites not detected?)
@@ -215,8 +215,8 @@ def checkScores():
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
     try:
-        #pass
-        fullText = urlopen(URL).read()
+        pass
+        #fullText = urlopen(URL).read()
     except:
         logHandler('URL OPEN ERROR', 'error')
         return
@@ -230,9 +230,9 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\switchover.htm')
-    #fullText = doc.readline()
-    #doc.close()
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+    fullText = doc.readline()
+    doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -407,17 +407,18 @@ def checkScoresWrapper():
     except:
         logHandler('CHECKSCORES ERROR', 'exception')
         logging.debug('Error circumstances to follow...')
-        logging.debug('firstRun = %s, timeout = %s, numGames = %i', \
+        logging.debug('\tfirstRun = %s, timeout = %s, numGames = %i', \
                       firstRun, timeout, numGames)
-        logging.debug('teams = %s', ', '.join(teams))
-        logging.debug('teamIDs = %s', ', '.join(map(str, teamIDs)))
-        logging.debug('scores = %s', ', '.join(scores))
-        logging.debug('goalFlags = %s', ', '.join(map(str, goalFlags)))
-        logging.debug('tracking = %s', ', '.join(map(str, tracking)))
-        logging.debug('timePeriod = %s', ', '.join(timePeriod))
-        logging.debug('gameStatus = %s', ', '.join(map(str, gameStatus)))
-        logging.debug('favorites = %s', ', '.join(map(str, favorites)))
-        #logging.debug('fullText (may not be up to date) = %s', fullText)
+        logging.debug('\tteams = %s', ', '.join(teams))
+        logging.debug('\tteamIDs = %s', ', '.join(map(str, teamIDs)))
+        logging.debug('\tscores = %s', ', '.join(scores))
+        logging.debug('\tgoalFlags = %s', ', '.join(map(str, goalFlags)))
+        logging.debug('\ttracking = %s', ', '.join(map(str, tracking)))
+        logging.debug('\ttimePeriod = %s', ', '.join(timePeriod))
+        logging.debug('\tgameStatus = %s', ', '.join(map(str, gameStatus)))
+        logging.debug('\tfavorites = %s', ', '.join(map(str, favorites)))
+        logging.debug('\tfullText (may not be up to date) = %s', fullText)
+        logging.exception('Error details to follow...')
         raise
 
     return
