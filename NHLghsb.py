@@ -43,13 +43,12 @@
 ## X Use NHL shield as splash screen
 ## X Redo lamp (reduce glow size)
 ## X Right-click to configure, mute, and add/remove from favorites
-## \ Debug mode displays last 5 lines of console output at the bottom
-##   X lingering 'time' itemconfig(timeText[gameNum], text=gameTime)
-##   X change debug font to consolas/courier, white on black text
-##   X avoid use of debugLength as conditional, only use for initialization (once)
-##   N rename page to scoreboard, debug area to messages
-##
-## W Muted title cut off, change to ascii?
+## X Debug mode displays last 5 lines of console output at the bottom
+##   X Lingering 'time' itemconfig(timeText[gameNum], text=gameTime)
+##   X Change debug font to consolas/courier, white on black text
+##   X Avoid use of debugLength as conditional, only use for initialization (once)
+##   X Rename page to scoreboard, debug area to messages
+## N Muted title cut off, change to ascii?
 ## ! Check initializing images/text actually creating them double? (switch to itemconfig calls?)
 ## - Check toggle mute/debug after new game switchover?
 ## - Check debug mode and splash screen? (debugText may be deleted... size wide enough?)
@@ -88,10 +87,10 @@ checkSumPrev = 0                    #scoreboard switchover detection
 tPrev = 0                           #time of the last update, in seconds
 tTimeout = 30                       #timeout threshold, in minutes
 numTeams = 30                       #number of teams in the league
-mute = False #NEW
-debug = False #NEW
-debugLength = 5 #NEW
-debugList = ['']*debugLength #NEW
+mute = False                        #mute on/of
+debug = False                       #debug mode on/off
+debugLength = 5                     #number of debug messages to display
+debugList = ['']*debugLength        #list of debug messages to display
 
 # Team IDs (DO NOT ALTER)
 ANA = 0; ARI = 1; BOS = 2; BUF = 3; CGY = 4; CAR = 5;
@@ -137,8 +136,9 @@ lw = 100                            #logo width
 tw = 70                             #text width
 sw = 128                            #splash screen width
 sh = 146                            #splash screen height
-ww = 0 #NEW window width
-wh = 0 #NEW window height
+ww = 0                              #window width
+wh = 0                              #window height
+dh = sp*(debugLength+1)             #debug height
     
 # File information
 try: progDir = os.path.dirname(os.path.abspath(__file__))
@@ -189,8 +189,8 @@ def checkScores():
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
     try:
-        pass
-        #fullText = urlopen(URL).read()
+        #pass
+        fullText = urlopen(URL).read()
     except:
         logHandler('URL OPEN ERROR', 'error')
         return
@@ -204,9 +204,9 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
-    fullText = doc.readline()
-    doc.close()
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+    #fullText = doc.readline()
+    #doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -407,9 +407,8 @@ def checkScoresWrapper():
 
 def initializeBoard():
 
-    global scoreboard; global numGames;
+    global scoreboard; global messages; global numGames; global debugLength;
     global sp; global gw; global gh; global ww; global wh; 
-    global debugLength;
     global scoreText; global periodText; global timeText; global debugText;
     global teamLogos; global lamps; global shadows;
 
@@ -420,12 +419,12 @@ def initializeBoard():
     scoreText = [scoreboard.create_text(0,0)]*numGames
     periodText = [scoreboard.create_text(0,0)]*numGames
     timeText = [scoreboard.create_text(0,0)]*numGames
-    debugText = [scoreboard.create_text(0,0)]*debugLength
+    debugText = [messages.create_text(0,0)]*debugLength
 
     teamLogos = [scoreboard.create_image(0,0)]*numGames*2
     shadows = [scoreboard.create_image(0,0)]*numGames*2
     lamps = [scoreboard.create_image(0,0)]*numGames*2
-    
+
     # Create an appropriate layout    
     ww = sp + gw + sp
     wh = sp + (gh+sp)*numGames
@@ -435,7 +434,7 @@ def initializeBoard():
     for gameNum in range(numGames):
         renderGame(gameNum)                
     scoreboard.pack()
-
+    
     # Debug text
     logHandler('Scoreboard initialized', 'info')
     
@@ -837,8 +836,6 @@ def logHandler(string, level):
     return
 
 
-
-
 #######################################
 ##
 ##  Toggle Debug
@@ -848,51 +845,34 @@ def logHandler(string, level):
 
 def toggleDebug():
 
-    global debug;
-    global scoreboard; global ww; global wh; global sp; global dh;
+    global debug; global debugText;
+    global messages; global ww; global wh; global sp; global dh;
 
-    global debugText;
-    global debugLength
-
-    dh = sp*(debugLength) #debug height
-    th = 8 #text height (inter-line spacing = 12, top/bottom spacing = 16
-
-    # Delete existing debug text or any initializations
+    # Delete existing debug text or initializations
     for index in range(len(debugText)):
-        scoreboard.delete(debugText[index])
+        messages.delete(debugText[index])
 
-
-
+    # Turn debug mode off and delete/hide everything
     if debug:
         debug = False
         logHandler('Debug mode off', 'debug')
+        messages.delete('all')
+        messages.pack_forget()
+        wh -= dh
 
-        wh -= sp+dh
-        scoreboard.config(width=ww, height=wh)
-
-        #delete all
-        
+    # Turn debug mode on and display the appropriate messages
     else:
         debug = True
-        logHandler('Debug mode on', 'debug')
-
-        # Create an appropriate layout
-        debugTop = wh
-        wh += sp+dh
-        scoreboard.config(width=ww, height=wh)
-
-        # Draw
-        debugBackground = scoreboard.create_rectangle(0, debugTop, ww, wh, fill='#333333', width=0)
-        debugLine = scoreboard.create_line(0, debugTop, ww, debugTop, fill='#181818')        
-        
-        # Text
-        x1 = ww/2
-        y1 = debugTop+sp
+        logHandler('Debug mode on', 'debug')   
+        messages.config(width=ww, height=dh)
+        messages.pack()
+        wh += dh
+        x = ww/2
+        y = sp
         for index in range(len(debugText)):
-            debugText[index] = scoreboard.create_text(x1, y1, justify='center', \
+            debugText[index] = messages.create_text(x, y, justify='center', \
                                         font=('Consolas',10), fill='#BBBBBB')
-            y1 += sp
-
+            y += sp
         updateDebug()
     
     return
@@ -907,10 +887,10 @@ def toggleDebug():
 
 def updateDebug():
 
-    global scoreboard; global debugText; global debugList;
+    global messages; global debugText; global debugList;
     
     for index in range(len(debugText)):
-        scoreboard.itemconfig(debugText[index], text=debugList[index])
+        messages.itemconfig(debugText[index], text=debugList[index])
         
     return
 
@@ -964,10 +944,13 @@ def toggleMute():
 
     global mute; global root;
 
+    # Turn mute off
     if mute:
         mute = False
         logHandler('Mute off', 'info')
         root.wm_title('NHL Goal Horn Scoreboard')
+
+    # Turn mute on
     else:
         mute = True
         logHandler('Mute on', 'info')
@@ -1083,7 +1066,7 @@ def saveConfig():
     
 ####################################  MAIN  ####################################
     
-# Tkinter-related (root widget, etc.)
+# Tkinter-related (root widget, canvases, etc.)
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
 root.iconbitmap(progDir+'\\Assets\\icon.ico')
@@ -1091,6 +1074,7 @@ root.resizable(width=False, height=False)
 root.bind('<Button-1>', leftClick)
 root.bind('<Button-3>', rightClick)
 scoreboard = Tkinter.Canvas(root, highlightthickness=0, background='white')
+messages = Tkinter.Canvas(root, highlightthickness=0, background='#333333')
 menu = Tkinter.Menu(root, tearoff=0)
 
 # Load user data
