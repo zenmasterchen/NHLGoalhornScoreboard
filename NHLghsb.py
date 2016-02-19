@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 02/09/16
+##  Last Revision: 02/19/16
 ##
 ##  Copyright (C) 2016 Austin Chen
 ##
@@ -16,6 +16,31 @@
 ##  Function List
 ##  -------------
 ##  checkScores()
+##  checkScoresWrapper()
+##  initializeScoreboard()
+##  renderGame(gameNum)
+##  setTeams()
+##  updateScoreboard()
+##
+##  toggleLamps()
+##  setShadows()
+##  splashScreen()
+##
+##  leftClick(event)
+##  rightClick(event)
+##  locateTeam(x, y)
+##
+##  toggleFavorite(teamID)
+##  toggleMute()
+##  toggleDebug()
+##  updateDebug()
+##
+##  loadConfig()
+##  saveConfig()
+##  loadImages()
+##  loadHorns()
+##
+##  logHandler(string, level)
 ##
 ##
 ## TO DO
@@ -52,15 +77,16 @@
 ## X Check initializing images/text actually creating them double? Just one per
 ## X Check toggle mute/debug after new game switchover?
 ## X Check debug mode and splash screen (resized splash screen width)
-## - Prevent multiple timeout/URL open errors
+## N Prevent multiple timeout/URL open errors
 ## X Print to log with logging instead of console
 ## X Import to-do from Outlook task
 ##
-## W Rearrange function order
-## W Lamp animation (test in Photoshop 15 frames)
-## W Change refresh rate to 15s, lag limit to 5s
+## X Rearrange function order
+## ! Lamp animation (test in Photoshop 15 frames)
 ## W Add 'small' size for 768px height displays (or bring back multiple columns)
 ## W Favorites selection (see email)
+##
+## W Change refresh rate to 15s, lag limit to 5s
 ## W Instructions (display when scoresheet/favorites not detected?)
 
 
@@ -189,8 +215,8 @@ def checkScores():
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
     try:
-        pass
-        #fullText = urlopen(URL).read()
+        #pass
+        fullText = urlopen(URL).read()
     except:
         logHandler('URL OPEN ERROR', 'error')
         return
@@ -204,9 +230,9 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    doc = open('C:\\Python27\\Scripts\\Test Scores\\switchover.htm')
-    fullText = doc.readline()
-    doc.close()
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\switchover.htm')
+    #fullText = doc.readline()
+    #doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -345,7 +371,7 @@ def checkScores():
 
     # Apply appropriate changes to the scoreboard display        
     if firstRun:
-        initializeBoard()
+        initializeScoreboard()
         setTeams()
     else:
         toggleLamps()
@@ -405,7 +431,7 @@ def checkScoresWrapper():
 ##  for assistance after determining the correct sizing of the board.
 ##
 
-def initializeBoard():
+def initializeScoreboard():
 
     global scoreboard; global numGames;
     global sp; global gw; global gh; global ww; global wh; 
@@ -444,7 +470,7 @@ def initializeBoard():
 ##  Render Game
 ##
 ##  Draws elements on the scoreboard for each game based on its
-##  game number and position. Gets called by initializeBoard().
+##  game number and position. Gets called by initializeScoreboard().
 ##
 
 def renderGame(gameNum):
@@ -491,8 +517,8 @@ def renderGame(gameNum):
 ##
 ##  Configures the team names, IDs, and logos, then calls updateScoreboard to
 ##  configure the score and period/time text. Should only be used one time, upon
-##  the first run of checkScores(). loadImages() and initializeBoard() must be
-##  called (or have previously been called) prior to setTeams().
+##  the first run of checkScores(). loadImages() and initializeScoreboard() must
+##  be called (or have previously been called) prior to setTeams().
 ##
 
 def setTeams():
@@ -675,50 +701,6 @@ def splashScreen():
 
 #######################################
 ##
-##  Load Images
-##
-##  Loads the team logo images for the purpose of filling the scoreboard.
-##  Also loads the goal lamp glow, logo drop shadow, and splash screen image.
-##  Should only be used one time. 
-##
-
-def loadImages():
-
-    global progDir; global numTeams;
-    global logoImages; global lampImage; global shadowImage; global splashImage;
-
-    imageDirectory = progDir+'\\Assets\\Images\\'
-    for index, team in enumerate(abbrev[:numTeams]):
-        logoImages[index] = Tkinter.PhotoImage(file=imageDirectory+team+'.gif')   
-    logoImages[NHL] = Tkinter.PhotoImage(file=imageDirectory+'NHL.gif')
-    lampImage = Tkinter.PhotoImage(file=imageDirectory+'lamp.gif')
-    shadowImage = Tkinter.PhotoImage(file=imageDirectory+'shadow.gif')
-    splashImage = Tkinter.PhotoImage(file=imageDirectory+'splash.gif')
-
-    return
-
-
-#######################################
-##
-##  Load Horns
-##
-##  Sets the audio filenames for the goal horns of tracked teams.
-##  Should only be used one time.
-##
-    
-def loadHorns():
-
-    global progDir; global numTeams; global horns;
-    
-    hornDirectory = progDir+'\\Assets\\Audio\\'
-    for index, team in enumerate(abbrev[:numTeams]):
-        horns[index] = hornDirectory+team+'.wav'
-
-    return
-
-
-#######################################
-##
 ##  Left Click
 ##
 ##  Determines the behavior of a left mouse button click.
@@ -790,107 +772,34 @@ def rightClick(event):
 
 #######################################
 ##
-##  Log Handler
+##  Locate Team
 ##
-##  Takes care of printing messages to the console, writing messages to the log
-##  file, and displaying them in debug mode.
-##
-
-def logHandler(string, level):
-
-    global debugList; global debug;
-
-    try:
-        # Print to console
-        print string
-
-        # Log to file
-        if level.lower == 'info': logging.info(string)
-        elif level.lower == 'debug': logging.debug(string)
-        elif level.lower == 'warning': logging.warning(string)
-        elif level.lower == 'error': logging.error(string)
-        elif level.lower == 'critical': logging.critical(string)
-        elif level.lower == 'exception':
-            logging.exception(string)
-            return
-        else: logging.info(string)
-
-        # Display in debug
-        debugList.pop(0)
-        debugList.append(string)
-        if debug:
-            updateDebug()
-        
-    except:
-        print('LOG HANDLER ERROR')
-        logging.error('LOG HANDLER ERROR')
-        debugList.pop(0)
-        debugList.append('LOG HANDLER ERROR')
-        if debug:
-            updateDebug()
-
-    return
-
-
-#######################################
-##
-##  Toggle Debug
-##
-##  Displays debug messages below the scoreboard or hides them otherwise
+##  Determine if a mouse event is valid (over a team logo) and returns the
+##  corresponding index. Gets called by leftClick(event).
 ##
 
-def toggleDebug():
+def locateTeam(x, y):
 
-    global debug; global debugText;
-    global messages; global ww; global wh; global sp; global dh;
+    global sp; global lw; global gh
 
-    # Delete existing debug text and reinitialize
-    if 'debugText' not in globals():
-        debugText = [messages.create_text(0,0)]*debugLength
-    for index in range(len(debugText)):
-        messages.delete(debugText[index])
-    
-    # Turn debug mode off and delete/hide everything
-    if debug:
-        debug = False
-        logHandler('Debug mode off', 'debug')
-        messages.delete('all')
-        messages.pack_forget()
-        wh -= dh
+    # Loop through the game possibilities
+    for index in range(numGames):
 
-    # Turn debug mode on and display the appropriate messages
-    else:
-        debug = True
-        logHandler('Debug mode on', 'debug')   
-        messages.config(width=ww, height=dh)
-        messages.pack()
-        wh += dh
-        x = ww/2
-        y = sp
-        for index in range(len(debugText)):
-            debugText[index] = messages.create_text(x, y, justify='center', \
-                                        font=('Consolas',10), fill='#BBBBBB')
-            y += sp
-        updateDebug()
-    
-    return
+        # Check the y coordinate
+        if sp+(gh+sp)*index <= y and y <= sp+(gh+sp)*index+gh:
 
+            # Check the x coordinate (away team)
+            if sp <= x and x <= sp+lw:
+                return index*2
+                break
+            
+            # Check the x coordinate (home team)
+            elif sp+lw+sp+tw+sp <= x and x <= sp+lw+sp+tw+sp+lw:
+                return index*2+1
+                break    
 
-#######################################
-##
-##  Update Debug
-##
-##  Displays the latest debug messages below the scoreboard
-##
-
-def updateDebug():
-
-    global messages; global debugText; global debugList;
-    
-    for index in range(len(debugText)):
-        messages.itemconfig(debugText[index], text=debugList[index])
-        
-    return
+    # Return -1 if the click is invalid
+    return -1
 
 
 #######################################
@@ -959,34 +868,63 @@ def toggleMute():
 
 #######################################
 ##
-##  Locate Team
+##  Toggle Debug
 ##
-##  Determine if a mouse event is valid (over a team logo) and returns the
-##  corresponding index. Gets called by leftClick(event).
+##  Displays debug messages below the scoreboard or hides them otherwise
 ##
 
-def locateTeam(x, y):
+def toggleDebug():
 
-    global sp; global lw; global gh
+    global debug; global debugText;
+    global messages; global ww; global wh; global sp; global dh;
 
-    # Loop through the game possibilities
-    for index in range(numGames):
+    # Delete existing debug text and reinitialize
+    if 'debugText' not in globals():
+        debugText = [messages.create_text(0,0)]*debugLength
+    for index in range(len(debugText)):
+        messages.delete(debugText[index])
+    
+    # Turn debug mode off and delete/hide everything
+    if debug:
+        debug = False
+        logHandler('Debug mode off', 'debug')
+        messages.delete('all')
+        messages.pack_forget()
+        wh -= dh
 
-        # Check the y coordinate
-        if sp+(gh+sp)*index <= y and y <= sp+(gh+sp)*index+gh:
+    # Turn debug mode on and display the appropriate messages
+    else:
+        debug = True
+        logHandler('Debug mode on', 'debug')   
+        messages.config(width=ww, height=dh)
+        messages.pack()
+        wh += dh
+        x = ww/2
+        y = sp
+        for index in range(len(debugText)):
+            debugText[index] = messages.create_text(x, y, justify='center', \
+                                        font=('Consolas',10), fill='#BBBBBB')
+            y += sp
+        updateDebug()
+    
+    return
 
-            # Check the x coordinate (away team)
-            if sp <= x and x <= sp+lw:
-                return index*2
-                break
-            
-            # Check the x coordinate (home team)
-            elif sp+lw+sp+tw+sp <= x and x <= sp+lw+sp+tw+sp+lw:
-                return index*2+1
-                break    
 
-    # Return -1 if the click is invalid
-    return -1
+#######################################
+##
+##  Update Debug
+##
+##  Displays the latest debug messages below the scoreboard
+##
+
+def updateDebug():
+
+    global messages; global debugText; global debugList;
+    
+    for index in range(len(debugText)):
+        messages.itemconfig(debugText[index], text=debugList[index])
+        
+    return
 
 
 #######################################
@@ -1061,7 +999,95 @@ def saveConfig():
         
     return
 
+
+#######################################
+##
+##  Load Images
+##
+##  Loads the team logo images for the purpose of filling the scoreboard.
+##  Also loads the goal lamp glow, logo drop shadow, and splash screen image.
+##  Should only be used one time. 
+##
+
+def loadImages():
+
+    global progDir; global numTeams;
+    global logoImages; global lampImage; global shadowImage; global splashImage;
+
+    imageDirectory = progDir+'\\Assets\\Images\\'
+    for index, team in enumerate(abbrev[:numTeams]):
+        logoImages[index] = Tkinter.PhotoImage(file=imageDirectory+team+'.gif')   
+    logoImages[NHL] = Tkinter.PhotoImage(file=imageDirectory+'NHL.gif')
+    lampImage = Tkinter.PhotoImage(file=imageDirectory+'lamp.gif')
+    shadowImage = Tkinter.PhotoImage(file=imageDirectory+'shadow.gif')
+    splashImage = Tkinter.PhotoImage(file=imageDirectory+'splash.gif')
+
+    return
+
+
+#######################################
+##
+##  Load Horns
+##
+##  Sets the audio filenames for the goal horns of tracked teams.
+##  Should only be used one time.
+##
     
+def loadHorns():
+
+    global progDir; global numTeams; global horns;
+    
+    hornDirectory = progDir+'\\Assets\\Audio\\'
+    for index, team in enumerate(abbrev[:numTeams]):
+        horns[index] = hornDirectory+team+'.wav'
+
+    return
+
+
+#######################################
+##
+##  Log Handler
+##
+##  Takes care of printing messages to the console, writing messages to the log
+##  file, and displaying them in debug mode.
+##
+
+def logHandler(string, level):
+
+    global debugList; global debug;
+
+    try:
+        # Print to console
+        print string
+
+        # Log to file
+        if level.lower == 'info': logging.info(string)
+        elif level.lower == 'debug': logging.debug(string)
+        elif level.lower == 'warning': logging.warning(string)
+        elif level.lower == 'error': logging.error(string)
+        elif level.lower == 'critical': logging.critical(string)
+        elif level.lower == 'exception':
+            logging.exception(string)
+            return
+        else: logging.info(string)
+
+        # Display in debug
+        debugList.pop(0)
+        debugList.append(string)
+        if debug:
+            updateDebug()
+        
+    except:
+        print('LOG HANDLER ERROR')
+        logging.error('LOG HANDLER ERROR')
+        debugList.pop(0)
+        debugList.append('LOG HANDLER ERROR')
+        if debug:
+            updateDebug()
+
+    return
+
+
 ####################################  MAIN  ####################################
     
 # Tkinter-related (root widget, canvases, etc.)
