@@ -13,6 +13,11 @@
 ##  Copyright (C) 2016 Austin Chen
 ##
 ##
+##  Function List
+##  -------------
+##  checkScores()
+##
+##
 ## TO DO
 ## -----
 ## W Readme
@@ -22,12 +27,42 @@
 ##     N Point to file
 ##     N Include the file and put instructions in README
 ##     X Use an installer
+##       X Installer file locations
+##       X Install fonts
+##       X Install VC (always)
+##       X Errno 13 when running from Program Files 
+##         N Require run as administrator
+##         X Move rewritable files to AppData/Roaming
+##           X Rename thisDir to progDir
+##           X template.cfg in Assets
+##         X folder must exist before reading/writing a file
+##       X Setup copy
 ##   X Bundle the Visual C runtime DLL
 ##   X Include source (.py files)
 ##   X License (put copyright info up top)
-## W Print to log with logging instead of console
-## - Import to-do from Outlook task
+## X Use NHL shield as splash screen
+## X Redo lamp (reduce glow size)
+## X Right-click to configure, mute, and add/remove from favorites
+## \ Debug mode displays last 5 lines of console output at the bottom
+##   X lingering 'time' itemconfig(timeText[gameNum], text=gameTime)
+##   X change debug font to consolas/courier, white on black text
+##   X avoid use of debugLength as conditional, only use for initialization (once)
+##   N rename page to scoreboard, debug area to messages
 ##
+## W Muted title cut off, change to ascii?
+## ! Check initializing images/text actually creating them double? (switch to itemconfig calls?)
+## - Check toggle mute/debug after new game switchover?
+## - Check debug mode and splash screen? (debugText may be deleted... size wide enough?)
+## - Prevent multiple timeout/URL open errors
+## X Print to log with logging instead of console
+## X Import to-do from Outlook task
+##
+## W Rearrange function order
+## W Lamp animation (test in Photoshop 15 frames)
+## W Change refresh rate to 15s, lag limit to 5s
+## W Add 'small' size for 768px height displays
+## W Favorites selection (see email)
+## W Instructions (display when scoresheet/favorites not detected?)
 
 
 import Tkinter                  #for graphics
@@ -55,6 +90,8 @@ tTimeout = 30                       #timeout threshold, in minutes
 numTeams = 30                       #number of teams in the league
 mute = False #NEW
 debug = False #NEW
+debugLength = 5 #NEW
+debugList = ['']*debugLength #NEW
 
 # Team IDs (DO NOT ALTER)
 ANA = 0; ARI = 1; BOS = 2; BUF = 3; CGY = 4; CAR = 5;
@@ -100,8 +137,8 @@ lw = 100                            #logo width
 tw = 70                             #text width
 sw = 128                            #splash screen width
 sh = 146                            #splash screen height
-pageWidth = 0 #NEW
-pageHeight = 0 #NEW
+ww = 0 #NEW window width
+wh = 0 #NEW window height
     
 # File information
 try: progDir = os.path.dirname(os.path.abspath(__file__))
@@ -144,7 +181,7 @@ def checkScores():
 
     # Suppress goal horns and lamps if it's been too long since the last run
     if not firstRun and time.time()-tPrev > tTimeout*60:
-        printHandler('TIMEOUT', 'warning')
+        logHandler('TIMEOUT', 'warning')
         timeout = True
     else:
         timeout = False
@@ -152,17 +189,17 @@ def checkScores():
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
     try:
-        #pass
-        fullText = urlopen(URL).read()
+        pass
+        #fullText = urlopen(URL).read()
     except:
-        printHandler('URL OPEN ERROR', 'error')
+        logHandler('URL OPEN ERROR', 'error')
         return
     t1 = time.time()
     lag = t1-t0
     if lag > 3:
-        printHandler('URL OPEN LAG = '+str(round(t1-t0, 2))+' SECONDS', 'warning')
+        logHandler('URL OPEN LAG = '+str(round(t1-t0, 2))+' SECONDS', 'warning')
         if lag > tTimeout*60:
-            printHandler('TIMEOUT', 'warning')
+            logHandler('TIMEOUT', 'warning')
             timeout = True
     tPrev = t1
     
@@ -174,12 +211,12 @@ def checkScores():
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
     if len(gamesArray) == 0:
-        printHandler('No game(s) detected', 'debug')
+        logHandler('No game(s) detected', 'debug')
         numGames = 0
         splashScreen()
         return
     if len(gamesArray) != numGames and not firstRun:
-        printHandler('New game(s) detected', 'debug')
+        logHandler('New game(s) detected', 'debug')
         firstRun = True
     numGames = len(gamesArray)
 
@@ -240,13 +277,13 @@ def checkScores():
             game = game[game.find(' ')+1:]
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2] and not firstRun and not timeout:
-                printHandler('Goal scored by '+abbrev[teamIDs[index*2]], 'info')
+                logHandler('Goal scored by '+abbrev[teamIDs[index*2]], 'info')
                 goalFlags[index*2] = True
                 if tracking[index*2] and not hornPlayed:
                     if mute:
-                        printHandler('Suppressing goal horn due to mute', 'debug')
+                        logHandler('Suppressing goal horn due to mute', 'debug')
                     else:
-                        printHandler('Playing the goal horn for '+abbrev[teamIDs[index*2]], 'info')
+                        logHandler('Playing the goal horn for '+abbrev[teamIDs[index*2]], 'info')
                         winsound.PlaySound(horns[teamIDs[index*2]], \
                                        winsound.SND_FILENAME | winsound.SND_ASYNC)
                     hornPlayed = True
@@ -257,13 +294,13 @@ def checkScores():
             game = game[game.find(' ')+1:]
             newScore = game[:game.find(' ')]
             if newScore > scores[index*2+1] and not firstRun and not timeout:
-                printHandler('Goal scored by '+abbrev[teamIDs[index*2+1]], 'info')
+                logHandler('Goal scored by '+abbrev[teamIDs[index*2+1]], 'info')
                 goalFlags[index*2+1] = True
                 if tracking[index*2+1] and not hornPlayed:
                     if mute:
-                        printHandler('Suppressing goal horn due to mute', 'debug')
+                        logHandler('Suppressing goal horn due to mute', 'debug')
                     else:
-                        printHandler('Playing the goal horn for '+abbrev[teamIDs[index*2+1]], 'info')
+                        logHandler('Playing the goal horn for '+abbrev[teamIDs[index*2+1]], 'info')
                         winsound.PlaySound(horns[teamIDs[index*2+1]], \
                                        winsound.SND_FILENAME | winsound.SND_ASYNC)
                     hornPlayed = True
@@ -302,7 +339,7 @@ def checkScores():
     # Detect team changes
     checkSum = sum(ord(char) for char in ''.join(teams))
     if checkSum != checkSumPrev and not firstRun:
-        printHandler('New team(s) detected', 'debug')
+        logHandler('New team(s) detected', 'debug')
         firstRun = True
     checkSumPrev = checkSum
 
@@ -342,7 +379,7 @@ def checkScoresWrapper():
     try:
         checkScores()
     except:
-        printHandler('CHECKSCORES ERROR', 'exception')
+        logHandler('CHECKSCORES ERROR', 'exception')
         logging.debug('Error circumstances to follow...')
         logging.debug('firstRun = %s, timeout = %s, numGames = %i', \
                       firstRun, timeout, numGames)
@@ -370,35 +407,37 @@ def checkScoresWrapper():
 
 def initializeBoard():
 
-    global page; global numGames;
-    global sp; global gw; global gh; global pageWidth; global pageHeight;
-    global scoreText; global periodText; global timeText;
+    global scoreboard; global numGames;
+    global sp; global gw; global gh; global ww; global wh; 
+    global debugLength;
+    global scoreText; global periodText; global timeText; global debugText;
     global teamLogos; global lamps; global shadows;
 
     # Delete existing elements if present
-    page.delete('all')
+    scoreboard.delete('all')
 
     # Initialize graphic and text elements
-    scoreText = [page.create_text(0,0)]*numGames
-    periodText = [page.create_text(0,0)]*numGames
-    timeText = [page.create_text(0,0)]*numGames
+    scoreText = [scoreboard.create_text(0,0)]*numGames
+    periodText = [scoreboard.create_text(0,0)]*numGames
+    timeText = [scoreboard.create_text(0,0)]*numGames
+    debugText = [scoreboard.create_text(0,0)]*debugLength
 
-    teamLogos = [page.create_image(0,0)]*numGames*2
-    shadows = [page.create_image(0,0)]*numGames*2
-    lamps = [page.create_image(0,0)]*numGames*2
+    teamLogos = [scoreboard.create_image(0,0)]*numGames*2
+    shadows = [scoreboard.create_image(0,0)]*numGames*2
+    lamps = [scoreboard.create_image(0,0)]*numGames*2
     
     # Create an appropriate layout    
-    pageWidth = sp + gw + sp
-    pageHeight = sp + (gh+sp)*numGames
-    page.config(width=pageWidth, height=pageHeight)
+    ww = sp + gw + sp
+    wh = sp + (gh+sp)*numGames
+    scoreboard.config(width=ww, height=wh)
 
     # Draw the games
     for gameNum in range(numGames):
         renderGame(gameNum)                
-    page.pack()
+    scoreboard.pack()
 
     # Debug text
-    printHandler('Scoreboard initialized', 'info')
+    logHandler('Scoreboard initialized', 'info')
     
     return
 
@@ -413,7 +452,7 @@ def initializeBoard():
 
 def renderGame(gameNum):
 
-    global page; global sp; global gh; global gw; global lw; global tw;
+    global scoreboard; global sp; global gh; global gw; global lw; global tw;
     global teamLogos; global lamps; global shadows;
     global scoreText; global periodText; global timeText;
     global lampImage; global shadowImage;
@@ -423,29 +462,29 @@ def renderGame(gameNum):
     # Away team images
     x1 = sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
-    shadows[gameNum*2] = page.create_image(x1, y1, anchor='center', \
+    shadows[gameNum*2] = scoreboard.create_image(x1, y1, anchor='center', \
                                             image=shadowImage, state='hidden')
-    lamps[gameNum*2] = page.create_image(x1, y1, anchor='center', \
+    lamps[gameNum*2] = scoreboard.create_image(x1, y1, anchor='center', \
                                           image=lampImage, state='hidden')
-    teamLogos[gameNum*2] = page.create_image(x1, y1, anchor='center')
+    teamLogos[gameNum*2] = scoreboard.create_image(x1, y1, anchor='center')
 
     # Text
     x1 = sp+lw+sp+tw/2
     y1 = sp+(gh+sp)*(row-1)+15
-    scoreText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
+    scoreText[gameNum] = scoreboard.create_text(x1, y1, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
     y1 = sp+(gh+sp)*(row-1)+15+26
-    periodText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
+    periodText[gameNum] = scoreboard.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
     y1 = sp+(gh+sp)*(row-1)+gh/2-1
-    timeText[gameNum] = page.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
+    timeText[gameNum] = scoreboard.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
     
     # Home team images
     x1 = sp+lw+sp+tw+sp+lw/2
     y1 = sp+(gh+sp)*(row-1)+gh/2
-    shadows[gameNum*2+1] = page.create_image(x1, y1, anchor='center', \
+    shadows[gameNum*2+1] = scoreboard.create_image(x1, y1, anchor='center', \
                                             image=shadowImage, state='hidden')
-    lamps[gameNum*2+1] = page.create_image(x1, y1, anchor='center', \
+    lamps[gameNum*2+1] = scoreboard.create_image(x1, y1, anchor='center', \
                                           image=lampImage, state='hidden')
-    teamLogos[gameNum*2+1] = page.create_image(x1, y1, anchor='center')
+    teamLogos[gameNum*2+1] = scoreboard.create_image(x1, y1, anchor='center')
     
     return
 
@@ -462,7 +501,7 @@ def renderGame(gameNum):
 
 def setTeams():
 
-    global page; global teams; global teamIDs;
+    global scoreboard; global teams; global teamIDs;
     global teamLogos; global logoImages; global favorites; global tracking;
 
     # Reset the list of tracked teams
@@ -503,7 +542,7 @@ def setTeams():
         else: teamIDs[index] = NHL
 
         # Set the logo
-        page.itemconfig(teamLogos[index], image=logoImages[teamIDs[index]])
+        scoreboard.itemconfig(teamLogos[index], image=logoImages[teamIDs[index]])
 
         # Check for a favorite team
         if teamIDs[index] in favorites:
@@ -513,7 +552,7 @@ def setTeams():
     setShadows()
 
     # Debug text
-    printHandler('Teams set', 'info')
+    logHandler('Teams set', 'info')
 
     return
 
@@ -528,32 +567,32 @@ def setTeams():
 
 def updateScoreboard():
 
-    global page; global numGames; global gameStatus; global timePeriod
+    global scoreboard; global numGames; global gameStatus; global timePeriod
     global periodText; global scoreText; global timeText; global scores;
 
     # Loop through the games
-    for gameNum in range(0,numGames):
+    for gameNum in range(numGames):
         
         # Games not yet started (0)
         if gameStatus[gameNum] == 0:
             gameTime = timePeriod[gameNum]
             if 'ET' in gameTime:
                 gameTime = gameTime[0:len(gameTime)-3]
-            page.itemconfig(periodText[gameNum], text='')
-            page.itemconfig(scoreText[gameNum], text='')  
-            page.itemconfig(timeText[gameNum], text=time)
+            scoreboard.itemconfig(periodText[gameNum], text='')
+            scoreboard.itemconfig(scoreText[gameNum], text='')  
+            scoreboard.itemconfig(timeText[gameNum], text=gameTime)
 
         # Games in progress (1-5) or finished (9)          
         else:
             score = str(scores[gameNum*2])+' - '+str(scores[gameNum*2+1])
-            page.itemconfig(scoreText[gameNum], text=score)            
-            page.itemconfig(periodText[gameNum], text=timePeriod[gameNum])
-            page.itemconfig(timeText[gameNum], text='')
+            scoreboard.itemconfig(scoreText[gameNum], text=score)            
+            scoreboard.itemconfig(periodText[gameNum], text=timePeriod[gameNum])
+            scoreboard.itemconfig(timeText[gameNum], text='')
             
     # Debug text
     timeNow = time.localtime()
     updateTime = time.strftime('%I:%M:%S %p')
-    printHandler('Scoreboard updated at '+updateTime, 'info')
+    logHandler('Scoreboard updated at '+updateTime, 'info')
 
     return
 
@@ -568,14 +607,14 @@ def updateScoreboard():
 
 def toggleLamps():
 
-    global page; global goalFlags; global abbrev; global teamIDs; global lamps;
+    global scoreboard; global goalFlags; global abbrev; global teamIDs; global lamps;
 
     # Loop through the goal scored flags
     for index, flag in enumerate(goalFlags):
         if flag:
-            page.itemconfig(lamps[index], state='normal')
+            scoreboard.itemconfig(lamps[index], state='normal')
         else:
-            page.itemconfig(lamps[index], state='hidden')
+            scoreboard.itemconfig(lamps[index], state='hidden')
 
     # Reset
     goalFlags = [False]*numGames*2
@@ -593,16 +632,16 @@ def toggleLamps():
 
 def setShadows():
 
-    global page; global tracking; global shadows;
+    global scoreboard; global tracking; global shadows;
 
     # Loop through the games to match the teams
     for index, status in enumerate(tracking):
 
         # Set the shadows accordingly
         if status: 
-            page.itemconfig(shadows[index], state='normal')
+            scoreboard.itemconfig(shadows[index], state='normal')
         else:
-            page.itemconfig(shadows[index], state='hidden')
+            scoreboard.itemconfig(shadows[index], state='hidden')
 
     return
 
@@ -616,25 +655,25 @@ def setShadows():
 
 def splashScreen():
 
-    global page; global sp; global sw; global sh;
+    global scoreboard; global sp; global sw; global sh;
     global splash; global splashImage;
 
     # Delete existing elements
-    page.delete('all')
+    scoreboard.delete('all')
 
     # Create an appropriate layout    
-    pageWidth = sp*1.5 + sw + sp*1.5
-    pageHeight = sp*1.5 + sh + sp*1.5
-    page.config(width=pageWidth, height=pageHeight)
+    ww = sp*1.5 + sw + sp*1.5
+    wh = sp*1.5 + sh + sp*1.5
+    scoreboard.config(width=ww, height=wh)
 
     # Draw the image
     x1 = sp*1.5+sw/2
     y1 = sp*1.5+sh/2
-    splash = page.create_image(x1, y1, anchor='center', image=splashImage)
-    page.pack()
+    splash = scoreboard.create_image(x1, y1, anchor='center', image=splashImage)
+    scoreboard.pack()
     
     # Debug text
-    printHandler('Splash screen displayed', 'info')
+    logHandler('Splash screen displayed', 'info')
 
     return
 
@@ -702,10 +741,10 @@ def leftClick(event):
         # Toggle the tracking status of the clicked-on team
         if not tracking[teamNum]:
             tracking[teamNum] = True
-            printHandler('Started tracking '+abbrev[teamIDs[teamNum]], 'info')
+            logHandler('Started tracking '+abbrev[teamIDs[teamNum]], 'info')
         else:
             tracking[teamNum] = False
-            printHandler('Stopped tracking '+abbrev[teamIDs[teamNum]], 'info')
+            logHandler('Stopped tracking '+abbrev[teamIDs[teamNum]], 'info')
 
         # Update the team's drop shadow for user feedback
         setShadows()
@@ -723,7 +762,7 @@ def leftClick(event):
 
 def rightClick(event):
 
-    global root; global page; global menu;
+    global root; global scoreboard; global menu;
     global mute; global teamIDs; global favorites;
 
     # Overwrite the previous context menu
@@ -745,7 +784,7 @@ def rightClick(event):
         menu.add_separator()  
 
     menu.add_checkbutton(label='Mute', command=toggleMute)
-    menu.add_checkbutton(label='Debug mode', command=toggleDebug) ##TODO
+    menu.add_checkbutton(label='Debug mode', command=toggleDebug)
     menu.add_command(label='Configure favorites') ##TODO
 
     # Display the context menu
@@ -754,15 +793,23 @@ def rightClick(event):
     return
 
 
+#######################################
+##
+##  Log Handler
+##
+##  Takes care of printing messages to the console, writing messages to the log
+##  file, and displaying them in debug mode.
+##
 
-##printHandler, logHandler, debugHandler
-def printHandler(string, level):
+def logHandler(string, level):
+
+    global debugList; global debug;
 
     try:
-        #print to console
+         # Print to console
         print string
 
-        #log
+        # Log to file
         if level.lower == 'info': logging.info(string)
         elif level.lower == 'debug': logging.debug(string)
         elif level.lower == 'warning': logging.warning(string)
@@ -773,76 +820,98 @@ def printHandler(string, level):
             return
         else: logging.info(string)
 
-        #debug
-        #list.pop
-        #list.insert(0, string)
-
+        # Display in debug
+        debugList.pop(0)
+        debugList.append(string)
+        if debug:
+            updateDebug()
         
     except:
-        pass
+        print('LOG HANDLER ERROR')
+        logging.error('LOG HANDLER ERROR')
+        debugList.pop(0)
+        debugList.append('LOG HANDLER ERROR')
+        if debug:
+            updateDebug()
 
     return
 
 
 
-# Layout, use junk strings first
-# Gather last 10 print strings in a list
-# All print strings? Or skip URL-related?
+
+#######################################
+##
+##  Toggle Debug
+##
+##  Displays debug messages below the scoreboard or hides them otherwise
+##
+
 def toggleDebug():
 
     global debug;
-    global page; global pageWidth; global pageHeight; global sp; global dh;
+    global scoreboard; global ww; global wh; global sp; global dh;
 
-    numLines = 10
-    dh = sp*(numLines+0.5) #debug height
-    th = 10 #text height
+    global debugText;
+    global debugLength
+
+    dh = sp*(debugLength) #debug height
+    th = 8 #text height (inter-line spacing = 12, top/bottom spacing = 16
+
+    # Delete existing debug text or any initializations
+    for index in range(len(debugText)):
+        scoreboard.delete(debugText[index])
+
+
 
     if debug:
         debug = False
-        printHandler('Debug mode off', 'debug')
+        logHandler('Debug mode off', 'debug')
 
-        pageHeight -= sp+dh
-        page.config(width=pageWidth, height=pageHeight)
+        wh -= sp+dh
+        scoreboard.config(width=ww, height=wh)
+
+        #delete all
         
     else:
         debug = True
-        printHandler('Debug mode on', 'debug')
+        logHandler('Debug mode on', 'debug')
 
         # Create an appropriate layout
-        debugTop = pageHeight
-        pageHeight += sp+dh
-        page.config(width=pageWidth, height=pageHeight)
+        debugTop = wh
+        wh += sp+dh
+        scoreboard.config(width=ww, height=wh)
 
-        # Draw line
-        line = page.create_line(0, debugTop, pageWidth, debugTop, fill='#BBBBBB')
-
+        # Draw
+        debugBackground = scoreboard.create_rectangle(0, debugTop, ww, wh, fill='#333333', width=0)
+        debugLine = scoreboard.create_line(0, debugTop, ww, debugTop, fill='#181818')        
+        
         # Text
-        x = pageWidth/2
-        y = debugTop+sp+th/2
-        for line in test:    
-            debugLine = page.create_text(x, y, justify='center', font=('TradeGothic-Light',10), fill='#333333')
-            page.itemconfig(debugLine, text=line) #move this
-            y += sp
+        x1 = ww/2
+        y1 = debugTop+sp
+        for index in range(len(debugText)):
+            debugText[index] = scoreboard.create_text(x1, y1, justify='center', \
+                                        font=('Consolas',10), fill='#BBBBBB')
+            y1 += sp
+
+        updateDebug()
     
     return
 
 
+#######################################
+##
+##  Update Debug
+##
+##  Displays the latest debug messages below the scoreboard
+##
 
 def updateDebug():
-    
-    test = ['Favorites loaded', \
-            'Scoreboard initialized', \
-            'Teams set', \
-            'Scoreboard updated at 15:17:33', \
-            'Debug mode on', \
-            'Scoreboard updated at 15:17:43', \
-            'Scoreboard updated at 15:17:53', \
-            'Scoreboard updated at 15:18:03', \
-            'Scoreboard updated at 15:18:13', \
-            'Scoreboard updated at 15:18:23']
 
+    global scoreboard; global debugText; global debugList;
     
-
+    for index in range(len(debugText)):
+        scoreboard.itemconfig(debugText[index], text=debugList[index])
+        
     return
 
 
@@ -860,25 +929,25 @@ def toggleFavorite(teamID):
     # Add as favorite
     if teamID not in favorites:
         favorites.append(teamID)
-        printHandler('Added '+abbrev[teamID]+' as favorite', 'info')
+        logHandler('Added '+abbrev[teamID]+' as favorite', 'info')
         saveConfig()
 
         # Start tracking
         if teamID in teamIDs and not tracking[teamIDs.index(teamID)]:
             tracking[teamIDs.index(teamID)] = True
-            printHandler('Started tracking '+abbrev[teamID], 'info')
+            logHandler('Started tracking '+abbrev[teamID], 'info')
             setShadows()
 
     # Remove as favorite
     else:
         favorites.remove(teamID)
-        printHandler('Removed '+abbrev[teamID]+' as favorite', 'info')
+        logHandler('Removed '+abbrev[teamID]+' as favorite', 'info')
         saveConfig()
 
         # Stop tracking
         if teamID in teamIDs and tracking[teamIDs.index(teamID)]:
             tracking[teamIDs.index(teamID)] = False
-            printHandler('Stopped tracking '+abbrev[teamID], 'info')
+            logHandler('Stopped tracking '+abbrev[teamID], 'info')
             setShadows()            
 
     return
@@ -897,11 +966,11 @@ def toggleMute():
 
     if mute:
         mute = False
-        printHandler('Mute off', 'info')
+        logHandler('Mute off', 'info')
         root.wm_title('NHL Goal Horn Scoreboard')
     else:
         mute = True
-        printHandler('Mute on', 'info')
+        logHandler('Mute on', 'info')
         root.wm_title('NHL Goal Horn Scoreboard (Muted)')
 
     return
@@ -958,10 +1027,10 @@ def loadConfig():
         doc = open(appDir+'\\'+configFile, 'r+')
         text = doc.readline().upper()
         doc.close()
-        printHandler('Favorites loaded', 'info')
+        logHandler('Favorites loaded', 'info')
     except:
-        printHandler('CONFIGURATION READ ERROR', 'error')
-        printHandler('Creating favorites', 'info')
+        logHandler('CONFIGURATION READ ERROR', 'error')
+        logHandler('Creating favorites', 'info')
         saveConfig()
         return
 
@@ -1004,10 +1073,10 @@ def saveConfig():
         doc.writelines(configText)
         doc.close()
                      
-        printHandler('Favorites saved', 'info')
+        logHandler('Favorites saved', 'info')
         
     except:
-        printHandler('CONFIGURATION WRITE ERROR', 'error')
+        logHandler('CONFIGURATION WRITE ERROR', 'error')
         
     return
 
@@ -1021,7 +1090,7 @@ root.iconbitmap(progDir+'\\Assets\\icon.ico')
 root.resizable(width=False, height=False)
 root.bind('<Button-1>', leftClick)
 root.bind('<Button-3>', rightClick)
-page = Tkinter.Canvas(root, highlightthickness=0, background='white')
+scoreboard = Tkinter.Canvas(root, highlightthickness=0, background='white')
 menu = Tkinter.Menu(root, tearoff=0)
 
 # Load user data
@@ -1034,5 +1103,5 @@ checkScoresWrapper()
 try:
     root.mainloop()
 except:
-    printHandler('MAINLOOP ERROR', 'exception')
+    logHandler('MAINLOOP ERROR', 'exception')
     raise
