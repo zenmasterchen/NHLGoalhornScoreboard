@@ -49,9 +49,9 @@
 ##   X Avoid use of debugLength as conditional, only use for initialization (once)
 ##   X Rename page to scoreboard, debug area to messages
 ## N Muted title cut off, change to ascii?
-## ! Check initializing images/text actually creating them double? (switch to itemconfig calls?)
-## - Check toggle mute/debug after new game switchover?
-## - Check debug mode and splash screen? (debugText may be deleted... size wide enough?)
+## X Check initializing images/text actually creating them double? Just one per
+## X Check toggle mute/debug after new game switchover?
+## X Check debug mode and splash screen (resized splash screen width)
 ## - Prevent multiple timeout/URL open errors
 ## X Print to log with logging instead of console
 ## X Import to-do from Outlook task
@@ -59,7 +59,7 @@
 ## W Rearrange function order
 ## W Lamp animation (test in Photoshop 15 frames)
 ## W Change refresh rate to 15s, lag limit to 5s
-## W Add 'small' size for 768px height displays
+## W Add 'small' size for 768px height displays (or bring back multiple columns)
 ## W Favorites selection (see email)
 ## W Instructions (display when scoresheet/favorites not detected?)
 
@@ -136,7 +136,7 @@ lw = 100                            #logo width
 tw = 70                             #text width
 sw = 128                            #splash screen width
 sh = 146                            #splash screen height
-ww = 0                              #window width
+ww = sp + gw + sp                   #window width
 wh = 0                              #window height
 dh = sp*(debugLength+1)             #debug height
     
@@ -189,8 +189,8 @@ def checkScores():
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
     try:
-        #pass
-        fullText = urlopen(URL).read()
+        pass
+        #fullText = urlopen(URL).read()
     except:
         logHandler('URL OPEN ERROR', 'error')
         return
@@ -204,9 +204,9 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
-    #fullText = doc.readline()
-    #doc.close()
+    doc = open('C:\\Python27\\Scripts\\Test Scores\\switchover.htm')
+    fullText = doc.readline()
+    doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -407,26 +407,24 @@ def checkScoresWrapper():
 
 def initializeBoard():
 
-    global scoreboard; global messages; global numGames; global debugLength;
+    global scoreboard; global numGames;
     global sp; global gw; global gh; global ww; global wh; 
-    global scoreText; global periodText; global timeText; global debugText;
+    global scoreText; global periodText; global timeText;
     global teamLogos; global lamps; global shadows;
 
     # Delete existing elements if present
     scoreboard.delete('all')
 
-    # Initialize graphic and text elements
+    # Create graphic and text elements
     scoreText = [scoreboard.create_text(0,0)]*numGames
     periodText = [scoreboard.create_text(0,0)]*numGames
     timeText = [scoreboard.create_text(0,0)]*numGames
-    debugText = [messages.create_text(0,0)]*debugLength
 
-    teamLogos = [scoreboard.create_image(0,0)]*numGames*2
     shadows = [scoreboard.create_image(0,0)]*numGames*2
     lamps = [scoreboard.create_image(0,0)]*numGames*2
+    teamLogos = [scoreboard.create_image(0,0)]*numGames*2
 
-    # Create an appropriate layout    
-    ww = sp + gw + sp
+    # Create an appropriate layout
     wh = sp + (gh+sp)*numGames
     scoreboard.config(width=ww, height=wh)
 
@@ -452,39 +450,38 @@ def initializeBoard():
 def renderGame(gameNum):
 
     global scoreboard; global sp; global gh; global gw; global lw; global tw;
-    global teamLogos; global lamps; global shadows;
+    global lamps; global shadows;
     global scoreText; global periodText; global timeText;
-    global lampImage; global shadowImage;
 
     row = gameNum+1
 
     # Away team images
-    x1 = sp+lw/2
-    y1 = sp+(gh+sp)*(row-1)+gh/2
-    shadows[gameNum*2] = scoreboard.create_image(x1, y1, anchor='center', \
+    x = sp+lw/2
+    y = sp+(gh+sp)*(row-1)+gh/2
+    shadows[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage, state='hidden')
-    lamps[gameNum*2] = scoreboard.create_image(x1, y1, anchor='center', \
+    lamps[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
                                           image=lampImage, state='hidden')
-    teamLogos[gameNum*2] = scoreboard.create_image(x1, y1, anchor='center')
+    teamLogos[gameNum*2] = scoreboard.create_image(x, y, anchor='center')
 
     # Text
-    x1 = sp+lw+sp+tw/2
-    y1 = sp+(gh+sp)*(row-1)+15
-    scoreText[gameNum] = scoreboard.create_text(x1, y1, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
-    y1 = sp+(gh+sp)*(row-1)+15+26
-    periodText[gameNum] = scoreboard.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
-    y1 = sp+(gh+sp)*(row-1)+gh/2-1
-    timeText[gameNum] = scoreboard.create_text(x1, y1, justify='center', font=('TradeGothic-Light',10), fill='#333333')
+    x = sp+lw+sp+tw/2
+    y = sp+(gh+sp)*(row-1)+15
+    scoreText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
+    y = sp+(gh+sp)*(row-1)+15+26
+    periodText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',10), fill='#333333')
+    y = sp+(gh+sp)*(row-1)+gh/2-1
+    timeText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',10), fill='#333333')
     
     # Home team images
-    x1 = sp+lw+sp+tw+sp+lw/2
-    y1 = sp+(gh+sp)*(row-1)+gh/2
-    shadows[gameNum*2+1] = scoreboard.create_image(x1, y1, anchor='center', \
+    x = sp+lw+sp+tw+sp+lw/2
+    y = sp+(gh+sp)*(row-1)+gh/2
+    shadows[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage, state='hidden')
-    lamps[gameNum*2+1] = scoreboard.create_image(x1, y1, anchor='center', \
+    lamps[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
                                           image=lampImage, state='hidden')
-    teamLogos[gameNum*2+1] = scoreboard.create_image(x1, y1, anchor='center')
-    
+    teamLogos[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center')
+
     return
 
 
@@ -654,21 +651,20 @@ def setShadows():
 
 def splashScreen():
 
-    global scoreboard; global sp; global sw; global sh;
+    global scoreboard; global sp; global sw; global sh; global ww; global wh;
     global splash; global splashImage;
 
     # Delete existing elements
     scoreboard.delete('all')
 
-    # Create an appropriate layout    
-    ww = sp*1.5 + sw + sp*1.5
+    # Create an appropriate layout
     wh = sp*1.5 + sh + sp*1.5
     scoreboard.config(width=ww, height=wh)
 
     # Draw the image
-    x1 = sp*1.5+sw/2
-    y1 = sp*1.5+sh/2
-    splash = scoreboard.create_image(x1, y1, anchor='center', image=splashImage)
+    x = ww/2
+    y = sp*1.5+sh/2
+    splash = scoreboard.create_image(x, y, anchor='center', image=splashImage)
     scoreboard.pack()
     
     # Debug text
@@ -805,7 +801,7 @@ def logHandler(string, level):
     global debugList; global debug;
 
     try:
-         # Print to console
+        # Print to console
         print string
 
         # Log to file
@@ -848,10 +844,12 @@ def toggleDebug():
     global debug; global debugText;
     global messages; global ww; global wh; global sp; global dh;
 
-    # Delete existing debug text or initializations
+    # Delete existing debug text and reinitialize
+    if 'debugText' not in globals():
+        debugText = [messages.create_text(0,0)]*debugLength
     for index in range(len(debugText)):
         messages.delete(debugText[index])
-
+    
     # Turn debug mode off and delete/hide everything
     if debug:
         debug = False
