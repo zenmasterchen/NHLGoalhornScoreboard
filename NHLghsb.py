@@ -17,6 +17,7 @@
 ##  -------------
 ##  checkScores()
 ##  checkScoresWrapper()
+##  URLhandler()
 ##  initializeScoreboard()
 ##  renderGame(gameNum)
 ##  setTeams()
@@ -88,8 +89,11 @@
 ## - Make lamp/shadow generic (temporarily delete reference file)
 ##
 ## X Changed widget initializations to int 0
-## - Prevent URL lag by using threading.thread?
-## - Define functions within functions? (for 1-time calls)
+## N root.after takes arguments? No need for lambda
+## N Prevent URL lag by using threading.thread? thread.start, thread.join
+##   X Need to define URLthread globally to prevent multiple instances
+##   X Do URLhandler exceptions get raised appropriately? Within checkScores?
+## N Define functions within functions? No real advantages
 ##
 ## W Add 'small' size for 768px height displays or bring back multiple columns
 ## W Favorites selection (see email)
@@ -107,7 +111,6 @@ import time                     #for delays
 import logging                  #for debugging
 from urllib import urlopen      #for reading in webpage content
 from shutil import copyfile     #for high-level file operations
-
 
 ################################################################################
 ##
@@ -192,18 +195,61 @@ fullText = ''
 
 #################################  FUNCTIONS  ##################################
 
+
+    ##MOVE TO BELOW URL WRAPPER
+#######################################
+##
+##  URL Handler
+##
+##  Reads in NHL game information from an ESPN feed or test file.
+##
+
+def URLhandler(): #URL wrapper, readHandler, readWrapper, read
+
+    global URL; global fullText; global firstRun; global timeout;
+    global tPrev; global tTimeout;  global lagLimit;
+    
+    test = False
+
+    # Read in the raw NHL scores information from ESPN
+    if not test:
+        t0 = time.time()
+        try:
+            fullText = urlopen(URL).read()
+        except:
+            logHandler('URL OPEN ERROR', 'error')
+            return
+        t1 = time.time()
+        lag = t1-t0
+        if lag > lagLimit:
+            logHandler('URL OPEN LAG = '+str(round(t1-t0, 2))+' SECONDS', 'warning')
+            if lag > tTimeout*60:
+                logHandler('TIMEOUT', 'warning')
+                timeout = True
+        tPrev = t1
+
+    # Read in a test file for development
+    else:
+        doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+        #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2m.html')
+        fullText = doc.readline()
+        doc.close()
+        tPrev = time.time()
+    
+    return fullText
+
     
 #######################################
 ##
 ##  Check Scores
 ##
-##  Reads and parses NHL game information from an ESPN feed, then graphically
-##  displays the scores. The brains of the scoreboard.
+##  Parses NHL game information, then orchestrates the display of the scores
+##  in a graphical manner by calling other functions. The brains of the program.
 ##
 
 def checkScores():
 
-    global URL; global fullText; global lagLimit; global tPrev; global tTimeout;
+    global URLthread; global fullText; global tPrev; global tTimeout;
     global firstRun; global timeout; global numGames; global checkSumPrev;
     global timePeriod; global gameStatus; 
     global teams; global teamIDs; global scores; 
@@ -222,28 +268,8 @@ def checkScores():
     else:
         timeout = False
     
-    # Read in the raw NHL scores information from the ESPN feed
-    t0 = time.time()
-    try:
-        #pass
-        fullText = urlopen(URL).read()
-    except:
-        logHandler('URL OPEN ERROR', 'error')
-        return
-    t1 = time.time()
-    lag = t1-t0
-    if lag > lagLimit:
-        logHandler('URL OPEN LAG = '+str(round(t1-t0, 2))+' SECONDS', 'warning')
-        if lag > tTimeout*60:
-            logHandler('TIMEOUT', 'warning')
-            timeout = True
-    tPrev = t1
-    
-    # Read in a test file if in development (comment out otherwise)
-    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
-    #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2m.html')
-    #fullText = doc.readline()
-    #doc.close()
+    # Obtain text for parsing
+    fullText = URLhandler()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -413,9 +439,10 @@ def checkScoresWrapper():
     try:
         checkScores()
         root.after(refreshRate*1000, checkScoresWrapper)
-    except:
+    except Exception as details:
         root.after(refreshRate*1000, checkScoresWrapper)
         logHandler('CHECKSCORES ERROR', 'exception')
+        logHandler(details, 'exception')
         logging.debug('Error circumstances to follow...')
         logging.debug('\tfirstRun = %s, timeout = %s, numGames = %i', \
                       firstRun, timeout, numGames)
@@ -428,8 +455,6 @@ def checkScoresWrapper():
         logging.debug('\tgameStatus = %s', ', '.join(map(str, gameStatus)))
         logging.debug('\tfavorites = %s', ', '.join(map(str, favorites)))
         logging.debug('\tfullText (may not be up to date) = %s', fullText)
-        logging.exception('Error details to follow...')
-        raise
 
     return
 
@@ -1128,6 +1153,8 @@ checkScoresWrapper()
 # Tkinter event loop
 try:
     root.mainloop()
-except:
+except Exception as details:
     logHandler('MAINLOOP ERROR', 'exception')
+    logHandler(details, 'exception')
+    logging.exception('Error details to follow...')
     raise
