@@ -82,11 +82,20 @@
 ## X Import to-do from Outlook task
 ##
 ## X Rearrange function order
-## ! Lamp animation: start with 2 frames, then 10 frames
-## - Add 'small' size for 768px height displays or bring back multiple columns)
-## - Favorites selection (see email)
+## \ Lamp animation
+##   X 2-frame version
+##   ! 10-frame version
+## - Make lamp/shadow generic (temporarily delete reference file)
+##
+## X Changed widget initializations to int 0
+## - Prevent URL lag by using threading.thread?
+## - Define functions within functions? (for 1-time calls)
+##
+## W Add 'small' size for 768px height displays or bring back multiple columns
+## W Favorites selection (see email)
 ##
 ## W Change refresh rate to 15s, lag limit to 5s
+## W Add dynamic refreshing (double refresh time if all games are done/final)
 ## W Instructions (display when scoresheet/favorites not detected?)
 
 
@@ -109,6 +118,7 @@ from shutil import copyfile     #for high-level file operations
 firstRun = True                     #first run flag
 timeout = False                     #delayed update flag
 refreshRate = 10                    #how often to update, in seconds
+lagLimit = 4                        #allowable update delay, in seconds
 checkSumPrev = 0                    #scoreboard switchover detection
 tPrev = 0                           #time of the last update, in seconds
 tTimeout = 30                       #timeout threshold, in minutes
@@ -193,7 +203,7 @@ fullText = ''
 
 def checkScores():
 
-    global URL; global fullText; global tPrev; global tTimeout; 
+    global URL; global fullText; global lagLimit; global tPrev; global tTimeout;
     global firstRun; global timeout; global numGames; global checkSumPrev;
     global timePeriod; global gameStatus; 
     global teams; global teamIDs; global scores; 
@@ -215,14 +225,14 @@ def checkScores():
     # Read in the raw NHL scores information from the ESPN feed
     t0 = time.time()
     try:
-        pass
-        #fullText = urlopen(URL).read()
+        #pass
+        fullText = urlopen(URL).read()
     except:
         logHandler('URL OPEN ERROR', 'error')
         return
     t1 = time.time()
     lag = t1-t0
-    if lag > 3:
+    if lag > lagLimit:
         logHandler('URL OPEN LAG = '+str(round(t1-t0, 2))+' SECONDS', 'warning')
         if lag > tTimeout*60:
             logHandler('TIMEOUT', 'warning')
@@ -230,9 +240,10 @@ def checkScores():
     tPrev = t1
     
     # Read in a test file if in development (comment out otherwise)
-    doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
-    fullText = doc.readline()
-    doc.close()
+    #doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+    #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2m.html')
+    #fullText = doc.readline()
+    #doc.close()
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -398,13 +409,12 @@ def checkScoresWrapper():
     global teams; global teamIDs; global scores;
     global goalFlag; global tracking;
     global timePeriod; global gameStatus; global favorites;
-    
-    # Loop based on the desired refresh rate
-    root.after(refreshRate*1000, checkScoresWrapper)
 
     try:
         checkScores()
+        root.after(refreshRate*1000, checkScoresWrapper)
     except:
+        root.after(refreshRate*1000, checkScoresWrapper)
         logHandler('CHECKSCORES ERROR', 'exception')
         logging.debug('Error circumstances to follow...')
         logging.debug('\tfirstRun = %s, timeout = %s, numGames = %i', \
@@ -443,13 +453,13 @@ def initializeScoreboard():
     scoreboard.delete('all')
 
     # Create graphic and text elements
-    scoreText = [scoreboard.create_text(0,0)]*numGames
-    periodText = [scoreboard.create_text(0,0)]*numGames
-    timeText = [scoreboard.create_text(0,0)]*numGames
+    scoreText = [0]*numGames
+    periodText = [0]*numGames
+    timeText = [0]*numGames
 
-    shadows = [scoreboard.create_image(0,0)]*numGames*2
-    lamps = [scoreboard.create_image(0,0)]*numGames*2
-    teamLogos = [scoreboard.create_image(0,0)]*numGames*2
+    shadows = [0]*numGames*2
+    lamps = [0]*numGames*2
+    teamLogos = [0]*numGames*2
 
     # Create an appropriate layout
     wh = sp + (gh+sp)*numGames
@@ -630,16 +640,23 @@ def updateScoreboard():
 
 def toggleLamps():
 
-    global scoreboard; global goalFlags; global abbrev; global teamIDs; global lamps;
+    global scoreboard; global goalFlags; global refreshRate; global lamps;
+
+    cycleLength = 1
+    numFrames = 2
 
     # Loop through the goal scored flags
     for index, flag in enumerate(goalFlags):
-        if flag:
-            scoreboard.itemconfig(lamps[index], state='normal')
-        else:
-            scoreboard.itemconfig(lamps[index], state='hidden')
-
-    # Reset
+        if flag:        
+            for cycle in range(refreshRate):
+                lamp = lamps[index]
+                #for frame in range(numFrames):
+                scoreboard.after(int((cycle+0.0)*1000), lambda: \
+                                 scoreboard.itemconfig(lamp, state='normal'))
+                scoreboard.after(int((cycle+0.5)*1000), lambda: \
+                                 scoreboard.itemconfig(lamp, state='hidden'))
+                
+    # Reset the goal scored flags
     goalFlags = [False]*numGames*2
         
     return
