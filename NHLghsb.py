@@ -85,8 +85,8 @@
 ## X Rearrange function order
 ## \ Lamp animation
 ##   X 2-frame version
-##   ! 10-frame version
-## - Make lamp/shadow generic (temporarily delete reference file)
+##   ! 10-frame version (with opacity, shrinking outer glow wont' work)
+## X Make lamp/shadow generic
 ##
 ## X Changed widget initializations to int 0
 ## N root.after takes arguments? No need for lambda
