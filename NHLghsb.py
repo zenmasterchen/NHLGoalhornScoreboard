@@ -15,9 +15,9 @@
 ##
 ##  Function List
 ##  -------------
+##  URLhandler()
 ##  checkScores()
 ##  checkScoresWrapper()
-##  URLhandler()
 ##  initializeScoreboard()
 ##  renderGame(gameNum)
 ##  setTeams()
@@ -85,7 +85,9 @@
 ## X Rearrange function order
 ## \ Lamp animation
 ##   X 2-frame version
-##   ! 10-frame version (with opacity, shrinking outer glow wont' work)
+##   \ 10-frame version (with opacity, shrinking outer glow won't work)
+##     - Can't use variables to denote frames within lambda...
+##     ! Add transparency so shadows don't get covered 
 ## X Make lamp/shadow generic
 ##
 ## X Changed widget initializations to int 0
@@ -99,7 +101,7 @@
 ## W Favorites selection (see email)
 ##
 ## W Change refresh rate to 15s, lag limit to 5s
-## W Add dynamic refreshing (double refresh time if all games are done/final)
+## W Dynamic refreshing (double refresh time if all games finished or not yet started)
 ## W Instructions (display when scoresheet/favorites not detected?)
 
 
@@ -155,17 +157,21 @@ favorites = []                      #list of the user's favorite teams
 numGames = 0                        #total current/upcoming NHL games
 
 # UX information
-logoImages = [Tkinter.PhotoImage]*(numTeams+1)
-lampImage = Tkinter.PhotoImage
-shadowImage = Tkinter.PhotoImage
-splashImage = Tkinter.PhotoImage
+logoImages = [0]*(numTeams+1)
+#lampImage = 0
+shadowImage = 0
+splashImage = 0
 horns = ['']*numTeams
-scoreText = []
-periodText = []
-timeText = []
+scoreText = ['']
+periodText = ['']
+timeText = ['']
 teamLogos = []
 shadows = []
 lamps = []
+
+numFrames = 10 #NEW
+lampFrames = [0]*(numFrames+1) #NEW
+
 
 # Display dimensions
 sp = 20                             #spacer
@@ -196,7 +202,6 @@ fullText = ''
 #################################  FUNCTIONS  ##################################
 
 
-    ##MOVE TO BELOW URL WRAPPER
 #######################################
 ##
 ##  URL Handler
@@ -204,7 +209,7 @@ fullText = ''
 ##  Reads in NHL game information from an ESPN feed or test file.
 ##
 
-def URLhandler(): #URL wrapper, readHandler, readWrapper, read
+def URLhandler():
 
     global URL; global fullText; global firstRun; global timeout;
     global tPrev; global tTimeout;  global lagLimit;
@@ -269,7 +274,10 @@ def checkScores():
         timeout = False
     
     # Obtain text for parsing
-    fullText = URLhandler()
+    try:
+        fullText = URLhandler()
+    except:
+        return
 
     # Roughly cut out each game using NHL delimiters
     gamesArray = fullText.split('nhl_s_left')[1:]
@@ -455,6 +463,7 @@ def checkScoresWrapper():
         logging.debug('\tgameStatus = %s', ', '.join(map(str, gameStatus)))
         logging.debug('\tfavorites = %s', ', '.join(map(str, favorites)))
         logging.debug('\tfullText (may not be up to date) = %s', fullText)
+        raise #debug only, delete for use
 
     return
 
@@ -515,6 +524,8 @@ def renderGame(gameNum):
     global lamps; global shadows;
     global scoreText; global periodText; global timeText;
 
+    global lampFrames;
+
     row = gameNum+1
 
     # Away team images
@@ -523,7 +534,7 @@ def renderGame(gameNum):
     shadows[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage, state='hidden')
     lamps[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
-                                          image=lampImage, state='hidden')
+                                          image=lampFrames[0], state='hidden')
     teamLogos[gameNum*2] = scoreboard.create_image(x, y, anchor='center')
 
     # Text
@@ -541,7 +552,7 @@ def renderGame(gameNum):
     shadows[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage, state='hidden')
     lamps[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
-                                          image=lampImage, state='hidden')
+                                          image=lampFrames[0], state='hidden')
     teamLogos[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center')
 
     return
@@ -660,27 +671,66 @@ def updateScoreboard():
 ##  Toggle Lamps
 ##
 ##  Lights the lamps (logo glows) when teams have scored, or resets them
-##  to hidden otherwise.
+##  to hidden otherwise. A complete animation cycle (on and off) lasts 1 second.
 ##
 
 def toggleLamps():
 
     global scoreboard; global goalFlags; global refreshRate; global lamps;
-
-    cycleLength = 1
-    numFrames = 2
-
+    global lampFrames;
+                                           
     # Loop through the goal scored flags
     for index, flag in enumerate(goalFlags):
-        if flag:        
-            for cycle in range(refreshRate):
-                lamp = lamps[index]
-                #for frame in range(numFrames):
-                scoreboard.after(int((cycle+0.0)*1000), lambda: \
-                                 scoreboard.itemconfig(lamp, state='normal'))
-                scoreboard.after(int((cycle+0.5)*1000), lambda: \
-                                 scoreboard.itemconfig(lamp, state='hidden'))
-                
+        if flag:
+            lamp = lamps[index]
+            scoreboard.itemconfig(lamp, state='normal')
+
+            # Schedule the animation frames
+            for cycle in range(refreshRate):                                                    
+                scoreboard.after(int((cycle+.05)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[1]))
+                scoreboard.after(int((cycle+.10)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[2]))
+                scoreboard.after(int((cycle+.15)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[3]))
+                scoreboard.after(int((cycle+.20)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[4]))
+                scoreboard.after(int((cycle+.25)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[5]))
+                scoreboard.after(int((cycle+.30)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[6]))
+                scoreboard.after(int((cycle+.35)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[7]))
+                scoreboard.after(int((cycle+.40)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[8]))
+                scoreboard.after(int((cycle+.45)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[9]))
+                scoreboard.after(int((cycle+.5)*1000), lambda: \
+                              scoreboard.itemconfig(lamp, image=lampFrames[10]))
+                scoreboard.after(int((cycle+.55)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[9]))
+                scoreboard.after(int((cycle+.60)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[8]))
+                scoreboard.after(int((cycle+.65)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[7]))
+                scoreboard.after(int((cycle+.70)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[6]))
+                scoreboard.after(int((cycle+.75)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[5]))
+                scoreboard.after(int((cycle+.80)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[4]))
+                scoreboard.after(int((cycle+.85)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[3]))
+                scoreboard.after(int((cycle+.90)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[2]))
+                scoreboard.after(int((cycle+.95)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[1]))
+                scoreboard.after(int((cycle+1.0)*1000), lambda: \
+                                scoreboard.itemconfig(lamp, image=lampFrames[0]))
+
+            scoreboard.after(refreshRate*1000, lambda: \
+                                scoreboard.itemconfig(lamp, state='hidden'))
+                    
     # Reset the goal scored flags
     goalFlags = [False]*numGames*2
         
@@ -1048,20 +1098,23 @@ def saveConfig():
 ##  Load Images
 ##
 ##  Loads the team logo images for the purpose of filling the scoreboard.
-##  Also loads the goal lamp glow, logo drop shadow, and splash screen image.
-##  Should only be used one time. 
+##  Also loads the goal lamp glow animation frames, logo drop shadow, and splash
+##  screen image. Should only be used one time. 
 ##
 
 def loadImages():
 
     global progDir; global numTeams;
-    global logoImages; global lampImage; global shadowImage; global splashImage;
+    global logoImages; global lampFrames; #global lampImage;
+    global shadowImage; global splashImage;
 
     imageDirectory = progDir+'\\Assets\\Images\\'
     for index, team in enumerate(abbrev[:numTeams]):
         logoImages[index] = Tkinter.PhotoImage(file=imageDirectory+team+'.gif')   
     logoImages[NHL] = Tkinter.PhotoImage(file=imageDirectory+'NHL.gif')
-    lampImage = Tkinter.PhotoImage(file=imageDirectory+'lamp.gif')
+    for index, frame in enumerate(lampFrames):
+        lampFrames[index] = Tkinter.PhotoImage(file=imageDirectory+'lamp'+str(index*10)+'.gif')
+    #lampImage = lampFrames[-1]
     shadowImage = Tkinter.PhotoImage(file=imageDirectory+'shadow.gif')
     splashImage = Tkinter.PhotoImage(file=imageDirectory+'splash.gif')
 
