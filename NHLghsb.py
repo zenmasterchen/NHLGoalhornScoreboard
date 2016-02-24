@@ -24,6 +24,7 @@
 ##  updateScoreboard()
 ##
 ##  toggleLamps()
+##  animateLamp(lamp)
 ##  setShadows()
 ##  splashScreen()
 ##
@@ -83,11 +84,12 @@
 ## X Import to-do from Outlook task
 ##
 ## X Rearrange function order
-## \ Lamp animation
+## X Lamp animation
 ##   X 2-frame version
-##   \ 10-frame version (with opacity, shrinking outer glow won't work)
-##     - Can't use variables to denote frames within lambda...
-##     ! Add transparency so shadows don't get covered 
+##   X 10-frame version (with opacity, shrinking outer glow won't work)
+##     X Can't use variables to denote frames within lambda
+##     N Add transparency so shadows don't get covered (can't with .gif)
+##     W Clean up lampFrames usage (initialize lamps to 0 or None?)
 ## X Make lamp/shadow generic
 ##
 ## X Changed widget initializations to int 0
@@ -97,11 +99,11 @@
 ##   X Do URLhandler exceptions get raised appropriately? Within checkScores?
 ## N Define functions within functions? No real advantages
 ##
-## W Add 'small' size for 768px height displays or bring back multiple columns
-## W Favorites selection (see email)
+## - Add 'small' size for 768px height displays or bring back multiple columns
+## - Favorites selection (see email)
 ##
-## W Change refresh rate to 15s, lag limit to 5s
-## W Dynamic refreshing (double refresh time if all games finished or not yet started)
+## - Change refresh rate to 15s, lag limit to 5s
+## - Dynamic refreshing (double refresh time if all games finished or not yet started)
 ## W Instructions (display when scoresheet/favorites not detected?)
 
 
@@ -670,71 +672,79 @@ def updateScoreboard():
 ##
 ##  Toggle Lamps
 ##
-##  Lights the lamps (logo glows) when teams have scored, or resets them
-##  to hidden otherwise. A complete animation cycle (on and off) lasts 1 second.
+##  Lights the lamps (logo glows) when teams have scored.
 ##
 
 def toggleLamps():
 
-    global scoreboard; global goalFlags; global refreshRate; global lamps;
-    global lampFrames;
-                                           
-    # Loop through the goal scored flags
+    global goalFlags; global lamps;
+    
     for index, flag in enumerate(goalFlags):
         if flag:
-            lamp = lamps[index]
-            scoreboard.itemconfig(lamp, state='normal')
-
-            # Schedule the animation frames
-            for cycle in range(refreshRate):                                                    
-                scoreboard.after(int((cycle+.05)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[1]))
-                scoreboard.after(int((cycle+.10)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[2]))
-                scoreboard.after(int((cycle+.15)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[3]))
-                scoreboard.after(int((cycle+.20)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[4]))
-                scoreboard.after(int((cycle+.25)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[5]))
-                scoreboard.after(int((cycle+.30)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[6]))
-                scoreboard.after(int((cycle+.35)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[7]))
-                scoreboard.after(int((cycle+.40)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[8]))
-                scoreboard.after(int((cycle+.45)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[9]))
-                scoreboard.after(int((cycle+.5)*1000), lambda: \
-                              scoreboard.itemconfig(lamp, image=lampFrames[10]))
-                scoreboard.after(int((cycle+.55)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[9]))
-                scoreboard.after(int((cycle+.60)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[8]))
-                scoreboard.after(int((cycle+.65)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[7]))
-                scoreboard.after(int((cycle+.70)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[6]))
-                scoreboard.after(int((cycle+.75)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[5]))
-                scoreboard.after(int((cycle+.80)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[4]))
-                scoreboard.after(int((cycle+.85)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[3]))
-                scoreboard.after(int((cycle+.90)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[2]))
-                scoreboard.after(int((cycle+.95)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[1]))
-                scoreboard.after(int((cycle+1.0)*1000), lambda: \
-                                scoreboard.itemconfig(lamp, image=lampFrames[0]))
-
-            scoreboard.after(refreshRate*1000, lambda: \
-                                scoreboard.itemconfig(lamp, state='hidden'))
-                    
-    # Reset the goal scored flags
-    goalFlags = [False]*numGames*2
+            animateLamp(lamps[index])
+            goalFlags[index] = False
         
     return
+
+
+#######################################
+##
+##  Animate Lamp
+##  
+##  Schedules the appearance of lamp image frames for animation purposes (all
+##  hard-coded for the time being due to lambdas.) One single on-and-off
+##  animation cycle lasts 1 second.
+##
+
+def animateLamp(lamp):
+
+    global scoreboard; global refreshRate; global lampFrames;
+    
+    for cycle in range(refreshRate):
+        scoreboard.after(int((cycle)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, state='normal'))
+        scoreboard.after(int((cycle+.05)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[1]))
+        scoreboard.after(int((cycle+.10)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[2]))
+        scoreboard.after(int((cycle+.15)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[3]))
+        scoreboard.after(int((cycle+.20)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[4]))
+        scoreboard.after(int((cycle+.25)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[5]))
+        scoreboard.after(int((cycle+.30)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[6]))
+        scoreboard.after(int((cycle+.35)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[7]))
+        scoreboard.after(int((cycle+.40)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[8]))
+        scoreboard.after(int((cycle+.45)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[9]))
+        scoreboard.after(int((cycle+.50)*1000), lambda: \
+                      scoreboard.itemconfig(lamp, image=lampFrames[10]))
+        scoreboard.after(int((cycle+.55)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[9]))
+        scoreboard.after(int((cycle+.60)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[8]))
+        scoreboard.after(int((cycle+.65)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[7]))
+        scoreboard.after(int((cycle+.70)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[6]))
+        scoreboard.after(int((cycle+.75)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[5]))
+        scoreboard.after(int((cycle+.80)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[4]))
+        scoreboard.after(int((cycle+.85)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[3]))
+        scoreboard.after(int((cycle+.90)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[2]))
+        scoreboard.after(int((cycle+.95)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[1]))
+        scoreboard.after(int((cycle+1.0)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[0]))
+        scoreboard.after(int((cycle+1.0)*1000), lambda: \
+                        scoreboard.itemconfig(lamp, state='hidden'))
 
 
 #######################################
