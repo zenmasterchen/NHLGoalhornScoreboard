@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 02/19/16
+##  Last Revision: 02/25/16
 ##
 ##  Copyright (C) 2016 Austin Chen
 ##
@@ -100,11 +100,13 @@
 ## N Define functions within functions? No real advantages
 ##
 ## - Add 'small' size for 768px height displays or bring back multiple columns
-## - Favorites selection (see email)
-##
-## - Change refresh rate to 15s, lag limit to 5s
-## - Dynamic refreshing (double refresh time if all games finished or not yet started)
-## W Instructions (display when scoresheet/favorites not detected?)
+## ! Favorites selection (see email, but bw/50% if no and color/shadow if yes)
+##   ! Design GUI in Illustrator
+##   \ Display in Tkinter
+##   - How to name small images? logoImages[0], [1], [2]?
+## W Change refresh rate to 15s, lag limit to 5s
+## W Dynamic refreshing (double refresh time if all games finished or not yet started)
+## - Instructions (display when scoresheet/favorites not detected?)
 
 
 import Tkinter                  #for graphics
@@ -115,6 +117,7 @@ import time                     #for delays
 import logging                  #for debugging
 from urllib import urlopen      #for reading in webpage content
 from shutil import copyfile     #for high-level file operations
+
 
 ################################################################################
 ##
@@ -160,7 +163,8 @@ numGames = 0                        #total current/upcoming NHL games
 
 # UX information
 logoImages = [0]*(numTeams+1)
-#lampImage = 0
+logoImagesMed = [0]*(numTeams+1) #NEW
+logoImagesMedBW = [0]*(numTeams+1) #NEW
 shadowImage = 0
 splashImage = 0
 horns = ['']*numTeams
@@ -178,14 +182,14 @@ lampFrames = [0]*(numFrames+1) #NEW
 # Display dimensions
 sp = 20                             #spacer
 gh = 50                             #game height, inner
-gw = 310                            #game width, inner
 lw = 100                            #logo width
 tw = 70                             #text width
-sw = 128                            #splash screen width
-sh = 146                            #splash screen height
+gw = 310 #=lw+sp+tw+sp+lw           #game width, inner
 ww = sp + gw + sp                   #window width
 wh = 0                              #window height
 dh = sp*(debugLength+1)             #debug height
+sw = 128                            #splash screen width
+sh = 146                            #splash screen height
     
 # File information
 try: progDir = os.path.dirname(os.path.abspath(__file__))
@@ -223,9 +227,10 @@ def URLhandler():
         t0 = time.time()
         try:
             fullText = urlopen(URL).read()
-        except:
-            logHandler('URL OPEN ERROR', 'error')
-            return
+        except Exception as details:
+            logHandler('URL OPEN ERROR', 'exception')
+            logging.exception(details)
+            raise
         t1 = time.time()
         lag = t1-t0
         if lag > lagLimit:
@@ -237,7 +242,7 @@ def URLhandler():
 
     # Read in a test file for development
     else:
-        doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+        doc = open('C:\\Python27\\Scripts\\Test Scores\\scores4.htm')
         #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2m.html')
         fullText = doc.readline()
         doc.close()
@@ -452,7 +457,7 @@ def checkScoresWrapper():
     except Exception as details:
         root.after(refreshRate*1000, checkScoresWrapper)
         logHandler('CHECKSCORES ERROR', 'exception')
-        logHandler(details, 'exception')
+        logging.exception(details)
         logging.debug('Error circumstances to follow...')
         logging.debug('\tfirstRun = %s, timeout = %s, numGames = %i', \
                       firstRun, timeout, numGames)
@@ -465,7 +470,7 @@ def checkScoresWrapper():
         logging.debug('\tgameStatus = %s', ', '.join(map(str, gameStatus)))
         logging.debug('\tfavorites = %s', ', '.join(map(str, favorites)))
         logging.debug('\tfullText (may not be up to date) = %s', fullText)
-        raise #debug only, delete for use
+        raise #for development only, delete when finished debugging
 
     return
 
@@ -481,7 +486,7 @@ def checkScoresWrapper():
 def initializeScoreboard():
 
     global scoreboard; global numGames;
-    global sp; global gw; global gh; global ww; global wh; 
+    global sp; global gh; global ww; global wh; 
     global scoreText; global periodText; global timeText;
     global teamLogos; global lamps; global shadows;
 
@@ -522,17 +527,17 @@ def initializeScoreboard():
 
 def renderGame(gameNum):
 
-    global scoreboard; global sp; global gh; global gw; global lw; global tw;
+    global scoreboard; global sp; global gh; global lw; global tw;
     global lamps; global shadows;
     global scoreText; global periodText; global timeText;
 
     global lampFrames;
 
-    row = gameNum+1
+    row = gameNum #0-indexed
 
     # Away team images
     x = sp+lw/2
-    y = sp+(gh+sp)*(row-1)+gh/2
+    y = sp+(gh+sp)*(row)+gh/2
     shadows[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage, state='hidden')
     lamps[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
@@ -541,16 +546,16 @@ def renderGame(gameNum):
 
     # Text
     x = sp+lw+sp+tw/2
-    y = sp+(gh+sp)*(row-1)+15
+    y = sp+(gh+sp)*(row)+15
     scoreText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
-    y = sp+(gh+sp)*(row-1)+15+26
+    y = sp+(gh+sp)*(row)+15+26
     periodText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',10), fill='#333333')
-    y = sp+(gh+sp)*(row-1)+gh/2-1
+    y = sp+(gh+sp)*(row)+gh/2-1
     timeText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',10), fill='#333333')
     
     # Home team images
     x = sp+lw+sp+tw+sp+lw/2
-    y = sp+(gh+sp)*(row-1)+gh/2
+    y = sp+(gh+sp)*(row)+gh/2
     shadows[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage, state='hidden')
     lamps[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
@@ -699,10 +704,9 @@ def toggleLamps():
 def animateLamp(lamp):
 
     global scoreboard; global refreshRate; global lampFrames;
-    
+
+    scoreboard.itemconfig(lamp, state='normal')
     for cycle in range(refreshRate):
-        scoreboard.after(int((cycle)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, state='normal'))
         scoreboard.after(int((cycle+.05)*1000), lambda: \
                         scoreboard.itemconfig(lamp, image=lampFrames[1]))
         scoreboard.after(int((cycle+.10)*1000), lambda: \
@@ -743,8 +747,8 @@ def animateLamp(lamp):
                         scoreboard.itemconfig(lamp, image=lampFrames[1]))
         scoreboard.after(int((cycle+1.0)*1000), lambda: \
                         scoreboard.itemconfig(lamp, image=lampFrames[0]))
-        scoreboard.after(int((cycle+1.0)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, state='hidden'))
+    scoreboard.after(refreshRate*1000, lambda: \
+                    scoreboard.itemconfig(lamp, state='hidden'))
 
 
 #######################################
@@ -846,8 +850,10 @@ def rightClick(event):
     global mute; global teamIDs; global favorites;
 
     # Overwrite the previous context menu
-    if menu.winfo_exists():
-        menu.destroy()            
+    try:
+        menu.destroy()
+    except:
+        pass
     menu = Tkinter.Menu(root, tearoff=0)
     
     # Check for a valid click on a team
@@ -865,7 +871,7 @@ def rightClick(event):
 
     menu.add_checkbutton(label='Mute', command=toggleMute)
     menu.add_checkbutton(label='Debug mode', command=toggleDebug)
-    menu.add_command(label='Configure favorites') ##TODO
+    menu.add_command(label='Configure favorites', command=configureFavorites)
 
     # Display the context menu
     menu.post(event.x_root, event.y_root)
@@ -883,7 +889,7 @@ def rightClick(event):
 
 def locateTeam(x, y):
 
-    global sp; global lw; global gh
+    global sp; global lw; global gh;
 
     # Loop through the game possibilities
     for index in range(numGames):
@@ -1030,6 +1036,126 @@ def updateDebug():
     return
 
 
+
+
+
+
+def configureFavorites():
+
+    global root; global newWindow; global popup;
+    global logoImagesMed; global logoImagesMedBW;
+
+    global shadowImage;
+
+    nw = 60
+    nh = 30
+    numRows = 5
+    numColumns = 6
+    
+
+    newWindow = Tkinter.Toplevel(root)
+    newWindow.wm_title('Configure Favorites')
+    newWindow.iconbitmap(progDir+'\\Assets\\icon.ico')
+    newWindow.resizable(width=False, height=False)
+    newWindow.protocol('WM_DELETE_WINDOW', closeWindow)
+    newWindow.bind('<Button-1>', windowClick)
+    
+    popup = Tkinter.Canvas(newWindow, highlightthickness=0, background='white')
+    popup.config(width=(sp+nw)*numColumns+sp, height=(sp+nh)*numRows+sp)
+
+    #row, column 1-indexed
+
+    y = sp+nh/2 #+(gh+sp)*(0)
+
+    counter = 0
+    for row in range(numRows):
+        for column in range(numColumns):
+            x = sp+(nw+sp)*column+nw/2
+            y = sp+(nh+sp)*row+nh/2
+            popup.create_image(x,y, anchor='center', image=logoImagesMedBW[counter])
+            counter += 1
+    popup.pack()
+    
+
+
+    return
+
+
+
+#saves config and destroys window
+def closeWindow():
+
+    global root; global newWindow;
+
+    
+    #print 'closing window'
+    
+    try:
+        newWindow.destroy()
+    except:
+        raise
+
+    return
+
+
+
+
+def windowClick(event):
+
+
+    
+##    global tracking; global abbrev; global teamIDs;
+##
+##    # Check for a valid click on a team
+##    teamNum = locateTeam(event.x, event.y)
+
+
+
+
+##    # Loop through the game possibilities
+##    for index in range(numGames):
+##
+##        # Check the y coordinate
+##        if sp+(gh+sp)*index <= y and y <= sp+(gh+sp)*index+gh:
+##
+##            # Check the x coordinate (away team)
+##            if sp <= x and x <= sp+lw:
+##                return index*2
+##                break
+##            
+##            # Check the x coordinate (home team)
+##            elif sp+lw+sp+tw+sp <= x and x <= sp+lw+sp+tw+sp+lw:
+##                return index*2+1
+##                break    
+
+
+    #row 0: 0, 1, 2, 3, 4
+    #row 1: 5, 6, 7, 8, 9
+    #row 2: 10, 11, 12, 13, 14
+    #...
+    
+##    if teamNum >= 0:
+##
+##        # Toggle the favorite status of the clicked-on team
+##        if teamIDs[teamNum] not in favorites:
+##            toggleFavorite(teamIDs[teamNum]))
+##        else:
+##            toggleFavorite(teamIDs[teamNum]))
+    
+##        if not tracking[teamNum]:
+##            tracking[teamNum] = True
+##            logHandler('Started tracking '+abbrev[teamIDs[teamNum]], 'info')
+##        else:
+##            tracking[teamNum] = False
+##            logHandler('Stopped tracking '+abbrev[teamIDs[teamNum]], 'info')
+##
+##        # Update the team's drop shadow for user feedback
+##        setShadows()
+
+
+    return
+
+
 #######################################
 ##
 ##  Load Configuration Information
@@ -1115,17 +1241,22 @@ def saveConfig():
 def loadImages():
 
     global progDir; global numTeams;
-    global logoImages; global lampFrames; #global lampImage;
+    global logoImages; global lampFrames; 
     global shadowImage; global splashImage;
+
+    global logoImagesMed; logoImagesMedBW;
 
     imageDirectory = progDir+'\\Assets\\Images\\'
     for index, team in enumerate(abbrev[:numTeams]):
-        logoImages[index] = Tkinter.PhotoImage(file=imageDirectory+team+'.gif')   
-    logoImages[NHL] = Tkinter.PhotoImage(file=imageDirectory+'NHL.gif')
+        logoImages[index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\'+team+'.gif')
+        logoImagesMed[index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\'+team+'.gif')
+        logoImagesMedBW[index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\30\\'+team+'.gif')
+    logoImages[NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\NHL.gif')
+    logoImagesMed[NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\NHL.gif')
+    logoImagesMedBW[NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\30\\NHL.gif')
     for index, frame in enumerate(lampFrames):
-        lampFrames[index] = Tkinter.PhotoImage(file=imageDirectory+'lamp'+str(index*10)+'.gif')
-    #lampImage = lampFrames[-1]
-    shadowImage = Tkinter.PhotoImage(file=imageDirectory+'shadow.gif')
+        lampFrames[index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\lamp'+str(index*10)+'.gif')
+    shadowImage = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\shadow.gif')
     splashImage = Tkinter.PhotoImage(file=imageDirectory+'splash.gif')
 
     return
