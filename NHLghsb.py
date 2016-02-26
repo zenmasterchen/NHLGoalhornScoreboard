@@ -112,7 +112,7 @@
 ## - Add 'small' size for 768px height displays or bring back multiple columns
 ##   - 60% size
 ##   - Set dimension variables
-## - 10th goal not detected
+## X 10th goal not detected because '10' < '9', cast to int
 ##
 ## W Change refresh rate to 15s, lag limit to 5s
 ## W Dynamic refreshing (double refresh time if all games finished or not yet started)
@@ -261,8 +261,14 @@ def URLhandler():
 
     # Read in a test file for development
     else:
-        doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
-        #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2m.html')
+        if 'CHEN' in os.environ['COMPUTERNAME']:
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
+        #elif os.environ['COMPUTERNAME'] == '':
+            #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2m.html')
+        else:
+            logHandler('FILE OPEN ERROR', 'exception')
+            logHandler('Unknown development machine', 'exception')
+            raise
         fullText = doc.readline()
         doc.close()
         tPrev = time.time()
@@ -372,7 +378,7 @@ def checkScores():
         if 'AM ET' not in game and 'PM ET' not in game and 'DELAY' not in game:
             teams[index*2] = game[:game.find(' ')]
             game = game[game.find(' ')+1:]
-            newScore = game[:game.find(' ')]
+            newScore = int(game[:game.find(' ')])
             if newScore > scores[index*2] and not firstRun and not timeout:
                 logHandler('Goal scored by '+abbrev[teamIDs[index*2]], 'info')
                 goalFlags[index*2] = True
@@ -389,7 +395,7 @@ def checkScores():
 
             teams[index*2+1] = game[:game.find(' ')]
             game = game[game.find(' ')+1:]
-            newScore = game[:game.find(' ')]
+            newScore = int(game[:game.find(' ')])
             if newScore > scores[index*2+1] and not firstRun and not timeout:
                 logHandler('Goal scored by '+abbrev[teamIDs[index*2+1]], 'info')
                 goalFlags[index*2+1] = True
@@ -484,7 +490,7 @@ def checkScoresWrapper():
                       firstRun, timeout, numGames)
         logging.debug('\tteams = %s', ', '.join(teams))
         logging.debug('\tteamIDs = %s', ', '.join(map(str, teamIDs)))
-        logging.debug('\tscores = %s', ', '.join(scores))
+        logging.debug('\tscores = %s', ', '.join(map(str, scores)))
         logging.debug('\tgoalFlags = %s', ', '.join(map(str, goalFlags)))
         logging.debug('\ttracking = %s', ', '.join(map(str, tracking)))
         logging.debug('\ttimePeriod = %s', ', '.join(timePeriod))
