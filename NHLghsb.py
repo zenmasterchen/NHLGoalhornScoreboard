@@ -31,11 +31,13 @@
 ##  leftClick(event)
 ##  rightClick(event)
 ##  locateTeam(x, y)
-##
 ##  toggleFavorite(teamID)
 ##  toggleMute()
 ##  toggleDebug()
 ##  updateDebug()
+##  configureFavorites()
+##  popupClick(event)
+##  closePopup()
 ##
 ##  loadConfig()
 ##  saveConfig()
@@ -99,11 +101,19 @@
 ##   X Do URLhandler exceptions get raised appropriately? Within checkScores?
 ## N Define functions within functions? No real advantages
 ##
+## X Favorites selection (see email, but bw/50% if no and color/shadow if yes)
+##   X Design GUI in Illustrator
+##   X Display in Tkinter
+##   X Add shadows to config
+##   X Reorganize images: [0], [1], [2], for large, small, and bw
+##   X Automatic config if no .cfg file detected
+##   X Clean up new functions
+##
 ## - Add 'small' size for 768px height displays or bring back multiple columns
-## ! Favorites selection (see email, but bw/50% if no and color/shadow if yes)
-##   ! Design GUI in Illustrator
-##   \ Display in Tkinter
-##   - How to name small images? logoImages[0], [1], [2]?
+##   - 60% size
+##   - Set dimension variables
+## - 10th goal not detected
+##
 ## W Change refresh rate to 15s, lag limit to 5s
 ## W Dynamic refreshing (double refresh time if all games finished or not yet started)
 ## - Instructions (display when scoresheet/favorites not detected?)
@@ -126,6 +136,7 @@ from shutil import copyfile     #for high-level file operations
 
 # Administrative information
 firstRun = True                     #first run flag
+noConfig = False                    #no configuration file flag
 timeout = False                     #delayed update flag
 refreshRate = 10                    #how often to update, in seconds
 lagLimit = 4                        #allowable update delay, in seconds
@@ -162,10 +173,10 @@ favorites = []                      #list of the user's favorite teams
 numGames = 0                        #total current/upcoming NHL games
 
 # UX information
-logoImages = [0]*(numTeams+1)
-logoImagesMed = [0]*(numTeams+1) #NEW
-logoImagesMedBW = [0]*(numTeams+1) #NEW
-shadowImage = 0
+logoImages = [[0]*(numTeams+1) for index in range(3)]
+numFrames = 10
+lampFrames = [[0]*(numFrames+1) for index in range(2)]
+shadowImage = [0]*2
 splashImage = 0
 horns = ['']*numTeams
 scoreText = ['']
@@ -174,14 +185,12 @@ timeText = ['']
 teamLogos = []
 shadows = []
 lamps = []
+configLogos = [0]*numTeams
+configShadows = [0]*numTeams
 
-numFrames = 10 #NEW
-lampFrames = [0]*(numFrames+1) #NEW
-
-
-# Display dimensions
+# Display parameters
 sp = 20                             #spacer
-gh = 50                             #game height, inner
+gh = 50 #lh                         #game height, inner
 lw = 100                            #logo width
 tw = 70                             #text width
 gw = 310 #=lw+sp+tw+sp+lw           #game width, inner
@@ -190,6 +199,16 @@ wh = 0                              #window height
 dh = sp*(debugLength+1)             #debug height
 sw = 128                            #splash screen width
 sh = 146                            #splash screen height
+
+sh = 30 #NEW                        #logo height, small
+sw = 60 #NEW                        #logo width, small
+configRows = 5                      #number of rows for configuring favorites
+configColumns = 6                   #number of columns for configuring favorites
+
+large = 0 #NEW
+small = 1 #NEW
+bw = 2 #NEW
+size = large #NEW
     
 # File information
 try: progDir = os.path.dirname(os.path.abspath(__file__))
@@ -242,7 +261,7 @@ def URLhandler():
 
     # Read in a test file for development
     else:
-        doc = open('C:\\Python27\\Scripts\\Test Scores\\scores4.htm')
+        doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
         #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2m.html')
         fullText = doc.readline()
         doc.close()
@@ -425,6 +444,8 @@ def checkScores():
     if firstRun:
         initializeScoreboard()
         setTeams()
+        if noConfig:            
+            configureFavorites()    
     else:
         toggleLamps()
     updateScoreboard()
@@ -539,9 +560,9 @@ def renderGame(gameNum):
     x = sp+lw/2
     y = sp+(gh+sp)*(row)+gh/2
     shadows[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
-                                            image=shadowImage, state='hidden')
+                                            image=shadowImage[large], state='hidden')
     lamps[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
-                                          image=lampFrames[0], state='hidden')
+                                          image=lampFrames[large][0], state='hidden')
     teamLogos[gameNum*2] = scoreboard.create_image(x, y, anchor='center')
 
     # Text
@@ -557,9 +578,9 @@ def renderGame(gameNum):
     x = sp+lw+sp+tw+sp+lw/2
     y = sp+(gh+sp)*(row)+gh/2
     shadows[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
-                                            image=shadowImage, state='hidden')
+                                            image=shadowImage[large], state='hidden')
     lamps[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
-                                          image=lampFrames[0], state='hidden')
+                                          image=lampFrames[large][0], state='hidden')
     teamLogos[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center')
 
     return
@@ -618,7 +639,7 @@ def setTeams():
         else: teamIDs[index] = NHL
 
         # Set the logo
-        scoreboard.itemconfig(teamLogos[index], image=logoImages[teamIDs[index]])
+        scoreboard.itemconfig(teamLogos[index], image=logoImages[large][teamIDs[index]])
 
         # Check for a favorite team
         if teamIDs[index] in favorites:
@@ -696,57 +717,27 @@ def toggleLamps():
 ##
 ##  Animate Lamp
 ##  
-##  Schedules the appearance of lamp image frames for animation purposes (all
-##  hard-coded for the time being due to lambdas.) One single on-and-off
-##  animation cycle lasts 1 second.
+##  Schedules the appearance of lamp image frames for animation purposes.
+##  One single on-and-off animation cycle lasts 1 second.
 ##
 
 def animateLamp(lamp):
 
-    global scoreboard; global refreshRate; global lampFrames;
+    global scoreboard; global refreshRate; global lampFrames; global numFrames;
+
+    global size;
 
     scoreboard.itemconfig(lamp, state='normal')
-    for cycle in range(refreshRate):
-        scoreboard.after(int((cycle+.05)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[1]))
-        scoreboard.after(int((cycle+.10)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[2]))
-        scoreboard.after(int((cycle+.15)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[3]))
-        scoreboard.after(int((cycle+.20)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[4]))
-        scoreboard.after(int((cycle+.25)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[5]))
-        scoreboard.after(int((cycle+.30)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[6]))
-        scoreboard.after(int((cycle+.35)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[7]))
-        scoreboard.after(int((cycle+.40)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[8]))
-        scoreboard.after(int((cycle+.45)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[9]))
-        scoreboard.after(int((cycle+.50)*1000), lambda: \
-                      scoreboard.itemconfig(lamp, image=lampFrames[10]))
-        scoreboard.after(int((cycle+.55)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[9]))
-        scoreboard.after(int((cycle+.60)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[8]))
-        scoreboard.after(int((cycle+.65)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[7]))
-        scoreboard.after(int((cycle+.70)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[6]))
-        scoreboard.after(int((cycle+.75)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[5]))
-        scoreboard.after(int((cycle+.80)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[4]))
-        scoreboard.after(int((cycle+.85)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[3]))
-        scoreboard.after(int((cycle+.90)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[2]))
-        scoreboard.after(int((cycle+.95)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[1]))
-        scoreboard.after(int((cycle+1.0)*1000), lambda: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[0]))
+    for cycle in range(10):
+        for frame in range(1, numFrames):
+            tOn = int((cycle+frame/(2.0*numFrames))*1000)
+            tOff = int((cycle+(numFrames*2-frame)/(2.0*numFrames))*1000)
+            scoreboard.after(tOn, lambda frame=frame: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[size][frame]))
+            scoreboard.after(tOff, lambda frame=frame: \
+                        scoreboard.itemconfig(lamp, image=lampFrames[size][frame]))
+        scoreboard.after(int((cycle+0.5)*1000), lambda frame=frame: \
+                      scoreboard.itemconfig(lamp, image=lampFrames[size][frame]))            
     scoreboard.after(refreshRate*1000, lambda: \
                     scoreboard.itemconfig(lamp, state='hidden'))
 
@@ -871,7 +862,7 @@ def rightClick(event):
 
     menu.add_checkbutton(label='Mute', command=toggleMute)
     menu.add_checkbutton(label='Debug mode', command=toggleDebug)
-    menu.add_command(label='Configure favorites', command=configureFavorites)
+    menu.add_command(label='Configure favorites...', command=configureFavorites)
 
     # Display the context menu
     menu.post(event.x_root, event.y_root)
@@ -922,11 +913,15 @@ def toggleFavorite(teamID):
 
     global favorites; global abbrev; global teamIDs; global tracking;
 
+    global selection; global popup;
+    global configLogos; global configShadows;
+    global logoImages;
+
+
     # Add as favorite
     if teamID not in favorites:
         favorites.append(teamID)
         logHandler('Added '+abbrev[teamID]+' as favorite', 'info')
-        saveConfig()
 
         # Start tracking
         if teamID in teamIDs and not tracking[teamIDs.index(teamID)]:
@@ -938,13 +933,26 @@ def toggleFavorite(teamID):
     else:
         favorites.remove(teamID)
         logHandler('Removed '+abbrev[teamID]+' as favorite', 'info')
-        saveConfig()
 
         # Stop tracking
         if teamID in teamIDs and tracking[teamIDs.index(teamID)]:
             tracking[teamIDs.index(teamID)] = False
             logHandler('Stopped tracking '+abbrev[teamID], 'info')
             setShadows()            
+
+    # Update the Configure Favorites window or save if not applicable
+    try:
+        if popup.winfo_exists():
+            if teamID in favorites:
+                selection.itemconfig(configLogos[teamID], image=logoImages[small][teamID])
+                selection.itemconfig(configShadows[teamID], state='normal')
+            else:
+                selection.itemconfig(configLogos[teamID], image=logoImages[bw][teamID])
+                selection.itemconfig(configShadows[teamID], state='hidden')                
+        else:
+            saveConfig()
+    except:
+        saveConfig()
 
     return
 
@@ -1036,122 +1044,101 @@ def updateDebug():
     return
 
 
-
-
-
+#######################################
+##
+##  Configure Favorites
+##
+##  Presents a full list of teams for the user to select their favorites.
+##
 
 def configureFavorites():
 
-    global root; global newWindow; global popup;
-    global logoImagesMed; global logoImagesMedBW;
-
-    global shadowImage;
-
-    nw = 60
-    nh = 30
-    numRows = 5
-    numColumns = 6
+    global root; global popup; global selection; global favorites;
+    global configRows; global configColumns; global sh; global sw;
+    global configLogos; global configShadows;
+    global logoImages; global shadowImage;
     
-
-    newWindow = Tkinter.Toplevel(root)
-    newWindow.wm_title('Configure Favorites')
-    newWindow.iconbitmap(progDir+'\\Assets\\icon.ico')
-    newWindow.resizable(width=False, height=False)
-    newWindow.protocol('WM_DELETE_WINDOW', closeWindow)
-    newWindow.bind('<Button-1>', windowClick)
-    
-    popup = Tkinter.Canvas(newWindow, highlightthickness=0, background='white')
-    popup.config(width=(sp+nw)*numColumns+sp, height=(sp+nh)*numRows+sp)
-
-    #row, column 1-indexed
-
-    y = sp+nh/2 #+(gh+sp)*(0)
-
-    counter = 0
-    for row in range(numRows):
-        for column in range(numColumns):
-            x = sp+(nw+sp)*column+nw/2
-            y = sp+(nh+sp)*row+nh/2
-            popup.create_image(x,y, anchor='center', image=logoImagesMedBW[counter])
-            counter += 1
-    popup.pack()
-    
-
-
-    return
-
-
-
-#saves config and destroys window
-def closeWindow():
-
-    global root; global newWindow;
-
-    
-    #print 'closing window'
-    
+    # Avoid creating duplicate configuration windows
     try:
-        newWindow.destroy()
+        if popup.winfo_exists():
+            return
+        else:
+            logHandler('Configuring favorites...', 'info')
     except:
-        raise
+        logHandler('Configuring favorites...', 'info')
+  
+    # Tkinter-related (toplevel widget and canvas)
+    popup = Tkinter.Toplevel(root)
+    popup.wm_title('Configure Favorites')
+    popup.iconbitmap(progDir+'\\Assets\\icon.ico')
+    popup.resizable(width=False, height=False)
+    popup.bind('<Button-1>', popupClick)
+    popup.protocol('WM_DELETE_WINDOW', closePopup)
+    selection = Tkinter.Canvas(popup, highlightthickness=0, background='white')
+    selection.config(width=(sp+sw)*configColumns+sp, height=(sp+sh)*configRows+sp)
+
+    # Draw the team logos according to favorite status
+    teamID = 0
+    for row in range(configRows):
+        for column in range(configColumns):
+            x = sp+(sw+sp)*column+sw/2
+            y = sp+(sh+sp)*row+sh/2
+            configShadows[teamID] = selection.create_image(x,y, anchor='center', \
+                                        image=shadowImage[small], state='hidden')
+            configLogos[teamID] = selection.create_image(x,y, anchor='center')
+            if teamID in favorites:
+                selection.itemconfig(configLogos[teamID], image=logoImages[small][teamID])
+                selection.itemconfig(configShadows[teamID], state='normal')
+            else:
+                selection.itemconfig(configLogos[teamID], image=logoImages[bw][teamID])
+            teamID += 1
+    selection.pack()
+    
+    return
+
+
+#######################################
+##
+##  Left Click in Popup Window
+##
+##  Determines the behavior of a left mouse button click in the Configure
+##  Favorites popup window. Triggered via Tkinter's bind capability.
+##
+
+def popupClick(event):
+
+    global sh; global sw; global configRows; global configColumns;
+
+    # Check the y coordinate
+    for row in range(configRows):
+        if sp+(sh+sp)*row <= event.y and event.y <= sp+(sh+sp)*row+sh:
+
+            #Check the x coordinate
+            for column in range(configColumns):
+                if sp+(sw+sp)*column <= event.x and event.x <= sp+(sw+sp)*column+sw:
+                      
+                    # Toggle the favorite status of the clicked-on team
+                    teamID = row*(configRows+1)+column
+                    toggleFavorite(teamID)
+                    return
 
     return
 
 
+#######################################
+##
+##  Close Popup Window
+##
+##  Saves configuration information and closes the Configure Favorites popup
+##  window. Triggered via Tkinter's protocol capability.
+##
 
+def closePopup():
 
-def windowClick(event):
-
-
+    global popup;
     
-##    global tracking; global abbrev; global teamIDs;
-##
-##    # Check for a valid click on a team
-##    teamNum = locateTeam(event.x, event.y)
-
-
-
-
-##    # Loop through the game possibilities
-##    for index in range(numGames):
-##
-##        # Check the y coordinate
-##        if sp+(gh+sp)*index <= y and y <= sp+(gh+sp)*index+gh:
-##
-##            # Check the x coordinate (away team)
-##            if sp <= x and x <= sp+lw:
-##                return index*2
-##                break
-##            
-##            # Check the x coordinate (home team)
-##            elif sp+lw+sp+tw+sp <= x and x <= sp+lw+sp+tw+sp+lw:
-##                return index*2+1
-##                break    
-
-
-    #row 0: 0, 1, 2, 3, 4
-    #row 1: 5, 6, 7, 8, 9
-    #row 2: 10, 11, 12, 13, 14
-    #...
-    
-##    if teamNum >= 0:
-##
-##        # Toggle the favorite status of the clicked-on team
-##        if teamIDs[teamNum] not in favorites:
-##            toggleFavorite(teamIDs[teamNum]))
-##        else:
-##            toggleFavorite(teamIDs[teamNum]))
-    
-##        if not tracking[teamNum]:
-##            tracking[teamNum] = True
-##            logHandler('Started tracking '+abbrev[teamIDs[teamNum]], 'info')
-##        else:
-##            tracking[teamNum] = False
-##            logHandler('Stopped tracking '+abbrev[teamIDs[teamNum]], 'info')
-##
-##        # Update the team's drop shadow for user feedback
-##        setShadows()
-
+    saveConfig()
+    popup.destroy()
 
     return
 
@@ -1160,12 +1147,12 @@ def windowClick(event):
 ##
 ##  Load Configuration Information
 ##
-##  Retrieve the user's preferences from the configuration file
+##  Retrieves the user's preferences from the configuration file.
 ##
 
 def loadConfig():
 
-    global appDir; global progDir; global configFile; global favorites;
+    global appDir; global configFile; global noConfig; global favorites; 
 
     # Reset the list of favorite teams
     favorites = []
@@ -1178,8 +1165,7 @@ def loadConfig():
         logHandler('Favorites loaded', 'info')
     except:
         logHandler('CONFIGURATION READ ERROR', 'error')
-        logHandler('Creating favorites', 'info')
-        saveConfig()
+        noConfig = True
         return
 
     # Check for team abbreviations and add to favorites
@@ -1194,9 +1180,8 @@ def loadConfig():
 ##
 ##  Save Configuration Information
 ##
-##  Save the user's preferences to the configuration file
+##  Saves the user's preferences to the configuration file.
 ##
-
 
 def saveConfig():
 
@@ -1234,29 +1219,34 @@ def saveConfig():
 ##  Load Images
 ##
 ##  Loads the team logo images for the purpose of filling the scoreboard.
-##  Also loads the goal lamp glow animation frames, logo drop shadow, and splash
-##  screen image. Should only be used one time. 
+##  Also loads the goal lamp glow animation frames, logo drop shadows, and a
+##  splash screen image. Should only be used one time. 
 ##
 
 def loadImages():
 
     global progDir; global numTeams;
-    global logoImages; global lampFrames; 
+    global logoImages;
+    global numFrames; global lampFrames;
     global shadowImage; global splashImage;
 
-    global logoImagesMed; logoImagesMedBW;
-
     imageDirectory = progDir+'\\Assets\\Images\\'
+
     for index, team in enumerate(abbrev[:numTeams]):
-        logoImages[index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\'+team+'.gif')
-        logoImagesMed[index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\'+team+'.gif')
-        logoImagesMedBW[index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\30\\'+team+'.gif')
-    logoImages[NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\NHL.gif')
-    logoImagesMed[NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\NHL.gif')
-    logoImagesMedBW[NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\30\\NHL.gif')
-    for index, frame in enumerate(lampFrames):
-        lampFrames[index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\lamp'+str(index*10)+'.gif')
-    shadowImage = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\shadow.gif')
+        logoImages[large][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\'+team+'.gif')
+        logoImages[small][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\'+team+'.gif')
+        logoImages[bw][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\'+team+'.gif')
+    logoImages[large][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\NHL.gif')
+    logoImages[small][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\NHL.gif')
+    logoImages[bw][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\NHL.gif')
+                                 
+    for index in range(numFrames):
+        lampFrames[large][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\lamp'+str(index*10)+'.gif')
+        lampFrames[small][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\lamp'+str(index*10)+'.gif')                                                   
+
+    shadowImage[large] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\shadow.gif')
+    shadowImage[small] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\shadow.gif')
+                                                   
     splashImage = Tkinter.PhotoImage(file=imageDirectory+'splash.gif')
 
     return
