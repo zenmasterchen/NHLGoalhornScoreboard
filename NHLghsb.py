@@ -109,10 +109,18 @@
 ##   X Automatic config if no .cfg file detected
 ##   X Clean up new functions
 ##
-## - Add 'small' size for 768px height displays or bring back multiple columns
-##   - 60% size
-##   - Set dimension variables
 ## X 10th goal not detected because '10' < '9', cast to int
+## X Add 'small' size for 768px height displays
+##   X 60% size
+##   X Set dimension variables
+##   X How to toggle between sizes?
+##     N Context menu? 
+##     X Automatically if < 1024 using root.winfo_screenheight()
+##   X Looks bad... bring back multiple columns?
+##   X Undo small size for images
+## - Bring back multiple columns
+##   ! Math from previous versions
+##   - Change automatically
 ##
 ## W Change refresh rate to 15s, lag limit to 5s
 ## W Dynamic refreshing (double refresh time if all games finished or not yet started)
@@ -190,25 +198,22 @@ configShadows = [0]*numTeams
 
 # Display parameters
 sp = 20                             #spacer
-gh = 50 #lh                         #game height, inner
-lw = 100                            #logo width
+lh = [50, 30]                       #logo height
+lw = [100, 60]                      #logo width
 tw = 70                             #text width
-gw = 310 #=lw+sp+tw+sp+lw           #game width, inner
-ww = sp + gw + sp                   #window width
+scoreOffset = 15                    #score text offset
+periodOffset = 41                   #period text offset
+fontSize = [26, 10]                 #font sizes
+ww = 0                              #window width
 wh = 0                              #window height
-dh = sp*(debugLength+1)             #debug height
 sw = 128                            #splash screen width
 sh = 146                            #splash screen height
-
-sh = 30 #NEW                        #logo height, small
-sw = 60 #NEW                        #logo width, small
+dh = sp*(debugLength+1)             #debug height
 configRows = 5                      #number of rows for configuring favorites
 configColumns = 6                   #number of columns for configuring favorites
-
-large = 0 #NEW
-small = 1 #NEW
-bw = 2 #NEW
-size = large #NEW
+large = 0                           #size index for team logos
+small = 1                           #size index for configuring favorites
+bw = 2                              #size index for configuring favorites
     
 # File information
 try: progDir = os.path.dirname(os.path.abspath(__file__))
@@ -262,9 +267,9 @@ def URLhandler():
     # Read in a test file for development
     else:
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html')
-        #elif os.environ['COMPUTERNAME'] == '':
-            #doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2m.html')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html', 'r+')
+        elif 'AUSTIN' in os.environ['COMPUTERNAME']:
+            doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2m.html')
         else:
             logHandler('FILE OPEN ERROR', 'exception')
             logHandler('Unknown development machine', 'exception')
@@ -513,9 +518,11 @@ def checkScoresWrapper():
 def initializeScoreboard():
 
     global scoreboard; global numGames;
-    global sp; global gh; global ww; global wh; 
+    global sp; global lh; global ww; global wh; 
     global scoreText; global periodText; global timeText;
     global teamLogos; global lamps; global shadows;
+
+    global size
 
     # Delete existing elements if present
     scoreboard.delete('all')
@@ -530,8 +537,10 @@ def initializeScoreboard():
     teamLogos = [0]*numGames*2
 
     # Create an appropriate layout
-    wh = sp + (gh+sp)*numGames
+    wh = sp+(lh[large]+sp)*numGames
+    ww = sp+lw[large]+sp+tw+sp+lw[large]+sp
     scoreboard.config(width=ww, height=wh)
+    print wh
 
     # Draw the games
     for gameNum in range(numGames):
@@ -554,17 +563,16 @@ def initializeScoreboard():
 
 def renderGame(gameNum):
 
-    global scoreboard; global sp; global gh; global lw; global tw;
-    global lamps; global shadows;
+    global scoreboard; global sp; global lh; global lw; global tw;
+    global lamps; global shadows; global shadowImage; global lampFrames;
     global scoreText; global periodText; global timeText;
-
-    global lampFrames;
+    global scoreOffset; global periodOffset; global fontSize;
 
     row = gameNum #0-indexed
 
     # Away team images
-    x = sp+lw/2
-    y = sp+(gh+sp)*(row)+gh/2
+    x = sp+lw[large]/2
+    y = sp+(lh[large]+sp)*(row)+lh[large]/2
     shadows[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage[large], state='hidden')
     lamps[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
@@ -572,17 +580,17 @@ def renderGame(gameNum):
     teamLogos[gameNum*2] = scoreboard.create_image(x, y, anchor='center')
 
     # Text
-    x = sp+lw+sp+tw/2
-    y = sp+(gh+sp)*(row)+15
-    scoreText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Bold',26), fill='#333333')
-    y = sp+(gh+sp)*(row)+15+26
-    periodText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',10), fill='#333333')
-    y = sp+(gh+sp)*(row)+gh/2-1
-    timeText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',10), fill='#333333')
+    x = sp+lw[large]+sp+tw/2
+    y = sp+(lh[large]+sp)*(row)+scoreOffset
+    scoreText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Bold',fontSize[large]), fill='#333333')
+    y = sp+(lh[large]+sp)*(row)+periodOffset
+    periodText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',fontSize[small]), fill='#333333')
+    y = sp+(lh[large]+sp)*(row)+lh[large]/2-1
+    timeText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',fontSize[small]), fill='#333333')
     
     # Home team images
-    x = sp+lw+sp+tw+sp+lw/2
-    y = sp+(gh+sp)*(row)+gh/2
+    x = sp+lw[large]+sp+tw+sp+lw[large]/2
+    y = sp+(lh[large]+sp)*(row)+lh[large]/2
     shadows[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage[large], state='hidden')
     lamps[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
@@ -739,11 +747,11 @@ def animateLamp(lamp):
             tOn = int((cycle+frame/(2.0*numFrames))*1000)
             tOff = int((cycle+(numFrames*2-frame)/(2.0*numFrames))*1000)
             scoreboard.after(tOn, lambda frame=frame: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[size][frame]))
+                        scoreboard.itemconfig(lamp, image=lampFrames[large][frame]))
             scoreboard.after(tOff, lambda frame=frame: \
-                        scoreboard.itemconfig(lamp, image=lampFrames[size][frame]))
+                        scoreboard.itemconfig(lamp, image=lampFrames[large][frame]))
         scoreboard.after(int((cycle+0.5)*1000), lambda frame=frame: \
-                      scoreboard.itemconfig(lamp, image=lampFrames[size][frame]))            
+                      scoreboard.itemconfig(lamp, image=lampFrames[large][frame]))            
     scoreboard.after(refreshRate*1000, lambda: \
                     scoreboard.itemconfig(lamp, state='hidden'))
 
@@ -886,21 +894,21 @@ def rightClick(event):
 
 def locateTeam(x, y):
 
-    global sp; global lw; global gh;
+    global sp; global lw; global lh;
 
     # Loop through the game possibilities
     for index in range(numGames):
 
         # Check the y coordinate
-        if sp+(gh+sp)*index <= y and y <= sp+(gh+sp)*index+gh:
+        if sp+(lh[large]+sp)*index <= y and y <= sp+(lh[large]+sp)*index+lh[large]:
 
             # Check the x coordinate (away team)
-            if sp <= x and x <= sp+lw:
+            if sp <= x and x <= sp+lw[large]:
                 return index*2
                 break
             
             # Check the x coordinate (home team)
-            elif sp+lw+sp+tw+sp <= x and x <= sp+lw+sp+tw+sp+lw:
+            elif sp+lw[large]+sp+tw+sp <= x and x <= sp+lw[large]+sp+tw+sp+lw[large]:
                 return index*2+1
                 break    
 
@@ -1001,6 +1009,8 @@ def toggleDebug():
     global debug; global debugText;
     global messages; global ww; global wh; global sp; global dh;
 
+    global fontSize;
+
     # Delete existing debug text and reinitialize
     if 'debugText' not in globals():
         debugText = [messages.create_text(0,0)]*debugLength
@@ -1014,6 +1024,7 @@ def toggleDebug():
         messages.delete('all')
         messages.pack_forget()
         wh -= dh
+        print wh
 
     # Turn debug mode on and display the appropriate messages
     else:
@@ -1026,9 +1037,10 @@ def toggleDebug():
         y = sp
         for index in range(len(debugText)):
             debugText[index] = messages.create_text(x, y, justify='center', \
-                                        font=('Consolas',10), fill='#BBBBBB')
+                                        font=('Consolas',fontSize[small]), fill='#BBBBBB')
             y += sp
         updateDebug()
+        print wh
     
     return
 
@@ -1060,7 +1072,7 @@ def updateDebug():
 def configureFavorites():
 
     global root; global popup; global selection; global favorites;
-    global configRows; global configColumns; global sh; global sw;
+    global configRows; global configColumns; global lh; global lw;
     global configLogos; global configShadows;
     global logoImages; global shadowImage;
     
@@ -1081,14 +1093,14 @@ def configureFavorites():
     popup.bind('<Button-1>', popupClick)
     popup.protocol('WM_DELETE_WINDOW', closePopup)
     selection = Tkinter.Canvas(popup, highlightthickness=0, background='white')
-    selection.config(width=(sp+sw)*configColumns+sp, height=(sp+sh)*configRows+sp)
+    selection.config(width=(sp+lw[small])*configColumns+sp, height=(sp+lh[small])*configRows+sp)
 
     # Draw the team logos according to favorite status
     teamID = 0
     for row in range(configRows):
         for column in range(configColumns):
-            x = sp+(sw+sp)*column+sw/2
-            y = sp+(sh+sp)*row+sh/2
+            x = sp+(lw[small]+sp)*column+lw[small]/2
+            y = sp+(lh[small]+sp)*row+lh[small]/2
             configShadows[teamID] = selection.create_image(x,y, anchor='center', \
                                         image=shadowImage[small], state='hidden')
             configLogos[teamID] = selection.create_image(x,y, anchor='center')
@@ -1113,15 +1125,15 @@ def configureFavorites():
 
 def popupClick(event):
 
-    global sh; global sw; global configRows; global configColumns;
+    global lh; global lw; global configRows; global configColumns;
 
     # Check the y coordinate
     for row in range(configRows):
-        if sp+(sh+sp)*row <= event.y and event.y <= sp+(sh+sp)*row+sh:
+        if sp+(lh[small]+sp)*row <= event.y and event.y <= sp+(lh[small]+sp)*row+lh[small]:
 
             #Check the x coordinate
             for column in range(configColumns):
-                if sp+(sw+sp)*column <= event.x and event.x <= sp+(sw+sp)*column+sw:
+                if sp+(lw[small]+sp)*column <= event.x and event.x <= sp+(lw[small]+sp)*column+lw[small]:
                       
                     # Toggle the favorite status of the clicked-on team
                     teamID = row*(configRows+1)+column
@@ -1333,6 +1345,8 @@ root.bind('<Button-3>', rightClick)
 scoreboard = Tkinter.Canvas(root, highlightthickness=0, background='white')
 messages = Tkinter.Canvas(root, highlightthickness=0, background='#333333')
 menu = Tkinter.Menu(root, tearoff=0)
+
+print root.winfo_screenheight()
 
 # Load user data
 loadConfig()
