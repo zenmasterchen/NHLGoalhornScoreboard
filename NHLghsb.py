@@ -19,9 +19,9 @@
 ##  checkScores()
 ##  checkScoresWrapper()
 ##  initializeScoreboard()
-##  renderGame(gameNum)
-##  setTeams()
-##  updateScoreboard()
+##  renderGame(gameNum) *
+##  setTeams() *
+##  updateScoreboard() *
 ##
 ##  toggleLamps()
 ##  animateLamp(lamp)
@@ -36,8 +36,8 @@
 ##  toggleDebug()
 ##  updateDebug()
 ##  configureFavorites()
-##  popupClick(event)
-##  closePopup()
+##  popupClick(event) *
+##  closePopup() *
 ##
 ##  loadConfig()
 ##  saveConfig()
@@ -118,9 +118,11 @@
 ##     X Automatically if < 1024 using root.winfo_screenheight()
 ##   X Looks bad... bring back multiple columns?
 ##   X Undo small size for images
-## - Bring back multiple columns
-##   ! Math from previous versions
-##   - Change automatically
+## X Bring back multiple columns
+##   X Math from previous versions
+##   X Redo click logic
+##   X Change automatically
+##   X Debug doesn't scale
 ##
 ## W Change refresh rate to 15s, lag limit to 5s
 ## W Dynamic refreshing (double refresh time if all games finished or not yet started)
@@ -191,10 +193,14 @@ scoreText = ['']
 periodText = ['']
 timeText = ['']
 teamLogos = []
+teamLogosX = []
+teamLogosY = []
 shadows = []
 lamps = []
 configLogos = [0]*numTeams
 configShadows = [0]*numTeams
+
+debugText = [0]*debugLength #NEW
 
 # Display parameters
 sp = 20                             #spacer
@@ -209,6 +215,9 @@ wh = 0                              #window height
 sw = 128                            #splash screen width
 sh = 146                            #splash screen height
 dh = sp*(debugLength+1)             #debug height
+
+multiColumn = False #NEW
+
 configRows = 5                      #number of rows for configuring favorites
 configColumns = 6                   #number of columns for configuring favorites
 large = 0                           #size index for team logos
@@ -267,9 +276,9 @@ def URLhandler():
     # Read in a test file for development
     else:
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\multi.htm', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2m.html')
+            doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm')
         else:
             logHandler('FILE OPEN ERROR', 'exception')
             logHandler('Unknown development machine', 'exception')
@@ -456,7 +465,10 @@ def checkScores():
         initializeScoreboard()
         setTeams()
         if noConfig:            
-            configureFavorites()    
+            configureFavorites()
+        if debug:
+            toggleDebug()
+            toggleDebug()
     else:
         toggleLamps()
     updateScoreboard()
@@ -518,11 +530,14 @@ def checkScoresWrapper():
 def initializeScoreboard():
 
     global scoreboard; global numGames;
-    global sp; global lh; global ww; global wh; 
+    global sp; global lh; global ww; global wh; global dh;
     global scoreText; global periodText; global timeText;
     global teamLogos; global lamps; global shadows;
+    
+    global multiColumn;
 
-    global size
+    global teamLogosX; global teamLogosY;
+    global messages; global dh;
 
     # Delete existing elements if present
     scoreboard.delete('all')
@@ -535,16 +550,25 @@ def initializeScoreboard():
     shadows = [0]*numGames*2
     lamps = [0]*numGames*2
     teamLogos = [0]*numGames*2
+    teamLogosX = [0]*numGames*2
+    teamLogosY = [0]*numGames*2
 
     # Create an appropriate layout
     wh = sp+(lh[large]+sp)*numGames
     ww = sp+lw[large]+sp+tw+sp+lw[large]+sp
+    if wh+dh > 700:#root.winfo_screenheight():
+        logHandler('Multiple columns enabled', 'debug')
+        multiColumn = True
+        wh = sp+(lh[large]+sp)*(numGames/2+numGames%2)
+        ww = sp+lw[large]+sp+tw+sp+lw[large] + sp + sp+lw[large]+sp+tw+sp+lw[large] + sp
+    else:
+        multiColumn = False;
     scoreboard.config(width=ww, height=wh)
-    print wh
+    messages.config(width=ww, height=dh)
 
     # Draw the games
     for gameNum in range(numGames):
-        renderGame(gameNum)                
+        renderGame(gameNum)         
     scoreboard.pack()
     
     # Debug text
@@ -568,19 +592,29 @@ def renderGame(gameNum):
     global scoreText; global periodText; global timeText;
     global scoreOffset; global periodOffset; global fontSize;
 
-    row = gameNum #0-indexed
+    global multiColumn;
+    global teamLogosX; global teamLogosY;
 
-    # Away team images
-    x = sp+lw[large]/2
+    if multiColumn:
+       row = gameNum/2
+       column = gameNum%2
+    else:
+       row = gameNum
+       column = 0
+    
+    # Away team images 
+    x = (sp+lw[large]+sp+tw+sp+lw[large]+sp)*column +sp+lw[large]/2
     y = sp+(lh[large]+sp)*(row)+lh[large]/2
     shadows[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage[large], state='hidden')
     lamps[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
                                           image=lampFrames[large][0], state='hidden')
     teamLogos[gameNum*2] = scoreboard.create_image(x, y, anchor='center')
+    teamLogosX[gameNum*2] = x
+    teamLogosY[gameNum*2] = y
 
     # Text
-    x = sp+lw[large]+sp+tw/2
+    x = (sp+lw[large]+sp+tw+sp+lw[large]+sp)*column +sp+lw[large]+sp+tw/2
     y = sp+(lh[large]+sp)*(row)+scoreOffset
     scoreText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Bold',fontSize[large]), fill='#333333')
     y = sp+(lh[large]+sp)*(row)+periodOffset
@@ -589,13 +623,15 @@ def renderGame(gameNum):
     timeText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',fontSize[small]), fill='#333333')
     
     # Home team images
-    x = sp+lw[large]+sp+tw+sp+lw[large]/2
+    x = (sp+lw[large]+sp+tw+sp+lw[large]+sp)*column +sp+lw[large]+sp+tw+sp+lw[large]/2
     y = sp+(lh[large]+sp)*(row)+lh[large]/2
     shadows[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage[large], state='hidden')
     lamps[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
                                           image=lampFrames[large][0], state='hidden')
     teamLogos[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center')
+    teamLogosX[gameNum*2+1] = x
+    teamLogosY[gameNum*2+1] = y
 
     return
 
@@ -796,6 +832,7 @@ def splashScreen():
     scoreboard.delete('all')
 
     # Create an appropriate layout
+    ww = sp+lw[large]+sp+tw+sp+lw[large]+sp
     wh = sp*1.5 + sh + sp*1.5
     scoreboard.config(width=ww, height=wh)
 
@@ -894,23 +931,17 @@ def rightClick(event):
 
 def locateTeam(x, y):
 
-    global sp; global lw; global lh;
+    global numGames; global teamLogosX; global teamLogosY; global lw; global lh;
 
-    # Loop through the game possibilities
-    for index in range(numGames):
+    # Loop through the team possibilities
+    for index in range(numGames*2):
 
         # Check the y coordinate
-        if sp+(lh[large]+sp)*index <= y and y <= sp+(lh[large]+sp)*index+lh[large]:
+        if teamLogosY[index]-lh[large]/2 <= y and y <= teamLogosY[index]+lh[large]/2:
 
-            # Check the x coordinate (away team)
-            if sp <= x and x <= sp+lw[large]:
-                return index*2
-                break
-            
-            # Check the x coordinate (home team)
-            elif sp+lw[large]+sp+tw+sp <= x and x <= sp+lw[large]+sp+tw+sp+lw[large]:
-                return index*2+1
-                break    
+            # Check the x coordinate
+            if teamLogosX[index]-lw[large]/2 <= x and x <= teamLogosX[index]+lw[large]/2:
+                return index
 
     # Return -1 if the click is invalid
     return -1
@@ -1010,12 +1041,6 @@ def toggleDebug():
     global messages; global ww; global wh; global sp; global dh;
 
     global fontSize;
-
-    # Delete existing debug text and reinitialize
-    if 'debugText' not in globals():
-        debugText = [messages.create_text(0,0)]*debugLength
-    for index in range(len(debugText)):
-        messages.delete(debugText[index])
     
     # Turn debug mode off and delete/hide everything
     if debug:
@@ -1024,23 +1049,20 @@ def toggleDebug():
         messages.delete('all')
         messages.pack_forget()
         wh -= dh
-        print wh
 
     # Turn debug mode on and display the appropriate messages
     else:
         debug = True
-        logHandler('Debug mode on', 'debug')   
-        messages.config(width=ww, height=dh)
-        messages.pack()
-        wh += dh
+        logHandler('Debug mode on', 'debug')
         x = ww/2
         y = sp
         for index in range(len(debugText)):
             debugText[index] = messages.create_text(x, y, justify='center', \
                                         font=('Consolas',fontSize[small]), fill='#BBBBBB')
             y += sp
+        messages.pack()
+        wh += dh        
         updateDebug()
-        print wh
     
     return
 
@@ -1054,7 +1076,7 @@ def toggleDebug():
 
 def updateDebug():
 
-    global messages; global debugText; global debugList;
+    global messages; global debugText; debug; global debugList; global ww;
     
     for index in range(len(debugText)):
         messages.itemconfig(debugText[index], text=debugList[index])
@@ -1345,8 +1367,6 @@ root.bind('<Button-3>', rightClick)
 scoreboard = Tkinter.Canvas(root, highlightthickness=0, background='white')
 messages = Tkinter.Canvas(root, highlightthickness=0, background='#333333')
 menu = Tkinter.Menu(root, tearoff=0)
-
-print root.winfo_screenheight()
 
 # Load user data
 loadConfig()
