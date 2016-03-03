@@ -123,10 +123,16 @@
 ##   X Redo click logic
 ##   X Change automatically
 ##   X Debug doesn't scale
+##   X Clean up variables and scopes
 ##
 ## W Change refresh rate to 15s, lag limit to 5s
 ## W Dynamic refreshing (double refresh time if all games finished or not yet started)
-## - Instructions (display when scoresheet/favorites not detected?)
+## \ Instructions (display when scoresheet/favorites not detected?)
+##   \ Location/logistics
+##     X Place in canvas above favorites configuration
+##     W Hide main scoreboard until favorites have been configured?
+##   W Design
+##   ! Copy
 
 
 import Tkinter                  #for graphics
@@ -197,10 +203,9 @@ teamLogosX = []
 teamLogosY = []
 shadows = []
 lamps = []
+debugText = [0]*debugLength
 configLogos = [0]*numTeams
 configShadows = [0]*numTeams
-
-debugText = [0]*debugLength #NEW
 
 # Display parameters
 sp = 20                             #spacer
@@ -215,9 +220,8 @@ wh = 0                              #window height
 sw = 128                            #splash screen width
 sh = 146                            #splash screen height
 dh = sp*(debugLength+1)             #debug height
-
-multiColumn = False #NEW
-
+ih = 100                            #instruction height
+multiColumn = False                 #multiple columns for small screens
 configRows = 5                      #number of rows for configuring favorites
 configColumns = 6                   #number of columns for configuring favorites
 large = 0                           #size index for team logos
@@ -253,7 +257,7 @@ def URLhandler():
     global URL; global fullText; global firstRun; global timeout;
     global tPrev; global tTimeout;  global lagLimit;
     
-    test = False
+    test = True
 
     # Read in the raw NHL scores information from ESPN
     if not test:
@@ -276,7 +280,7 @@ def URLhandler():
     # Read in a test file for development
     else:
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\multi.htm', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm')
         else:
@@ -529,16 +533,12 @@ def checkScoresWrapper():
 
 def initializeScoreboard():
 
-    global scoreboard; global numGames;
+    global scoreboard; global messages; global numGames; global multiColumn;
     global sp; global lh; global ww; global wh; global dh;
     global scoreText; global periodText; global timeText;
     global teamLogos; global lamps; global shadows;
-    
-    global multiColumn;
-
     global teamLogosX; global teamLogosY;
-    global messages; global dh;
-
+    
     # Delete existing elements if present
     scoreboard.delete('all')
 
@@ -556,7 +556,7 @@ def initializeScoreboard():
     # Create an appropriate layout
     wh = sp+(lh[large]+sp)*numGames
     ww = sp+lw[large]+sp+tw+sp+lw[large]+sp
-    if wh+dh > 700:#root.winfo_screenheight():
+    if wh+dh > root.winfo_screenheight():
         logHandler('Multiple columns enabled', 'debug')
         multiColumn = True
         wh = sp+(lh[large]+sp)*(numGames/2+numGames%2)
@@ -591,10 +591,9 @@ def renderGame(gameNum):
     global lamps; global shadows; global shadowImage; global lampFrames;
     global scoreText; global periodText; global timeText;
     global scoreOffset; global periodOffset; global fontSize;
+    global multiColumn; global teamLogosX; global teamLogosY;
 
-    global multiColumn;
-    global teamLogosX; global teamLogosY;
-
+    # Adjust for one or multiple columns
     if multiColumn:
        row = gameNum/2
        column = gameNum%2
@@ -774,8 +773,6 @@ def toggleLamps():
 def animateLamp(lamp):
 
     global scoreboard; global refreshRate; global lampFrames; global numFrames;
-
-    global size;
 
     scoreboard.itemconfig(lamp, state='normal')
     for cycle in range(10):
@@ -957,11 +954,8 @@ def locateTeam(x, y):
 def toggleFavorite(teamID):
 
     global favorites; global abbrev; global teamIDs; global tracking;
-
-    global selection; global popup;
-    global configLogos; global configShadows;
+    global popup; global selection; global configLogos; global configShadows;
     global logoImages;
-
 
     # Add as favorite
     if teamID not in favorites:
@@ -1037,10 +1031,8 @@ def toggleMute():
 
 def toggleDebug():
 
-    global debug; global debugText;
-    global messages; global ww; global wh; global sp; global dh;
-
-    global fontSize;
+    global debug; global debugText; global messages;
+    global ww; global wh; global sp; global dh; global fontSize;
     
     # Turn debug mode off and delete/hide everything
     if debug:
@@ -1097,7 +1089,8 @@ def configureFavorites():
     global configRows; global configColumns; global lh; global lw;
     global configLogos; global configShadows;
     global logoImages; global shadowImage;
-    
+    global noConfig; global ih;
+
     # Avoid creating duplicate configuration windows
     try:
         if popup.winfo_exists():
@@ -1112,10 +1105,28 @@ def configureFavorites():
     popup.wm_title('Configure Favorites')
     popup.iconbitmap(progDir+'\\Assets\\icon.ico')
     popup.resizable(width=False, height=False)
-    popup.bind('<Button-1>', popupClick)
     popup.protocol('WM_DELETE_WINDOW', closePopup)
+    noConfig = True
+    if noConfig:
+        instructions = selection = Tkinter.Canvas(popup, highlightthickness=0, background='gray')
+        instructions.config(width=(sp+lw[small])*configColumns+sp, height=ih)
+        #x = sp
+        #y = sp
+        #debugList = ['']*debugLength
+        #for index in range(len(debugText)):
+        #instructions.create_text(x, y, justify='center', \
+        #                                font=('TradeGothic-Light',fontSize[small]), \
+        #                                fill='#333333', text='lorum ipsum dolor')
+
+        instructions.pack()
+
+
+
+
+
     selection = Tkinter.Canvas(popup, highlightthickness=0, background='white')
     selection.config(width=(sp+lw[small])*configColumns+sp, height=(sp+lh[small])*configRows+sp)
+    selection.bind('<Button-1>', selectionClick)
 
     # Draw the team logos according to favorite status
     teamID = 0
@@ -1139,13 +1150,13 @@ def configureFavorites():
 
 #######################################
 ##
-##  Left Click in Popup Window
+##  Left Click in Configure Favorites
 ##
 ##  Determines the behavior of a left mouse button click in the Configure
-##  Favorites popup window. Triggered via Tkinter's bind capability.
+##  Favorites selection area. Triggered via Tkinter's bind capability.
 ##
 
-def popupClick(event):
+def selectionClick(event):
 
     global lh; global lw; global configRows; global configColumns;
 
