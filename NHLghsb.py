@@ -133,6 +133,14 @@
 ##     W Hide main scoreboard until favorites have been configured?
 ##   W Design
 ##   ! Copy
+##
+## X Time zone compensation (for not yet started games)
+##   X time.timezone for offset (Eastern = 18000, Central = 21600 as of 3/4)
+##   X Just support the US time zones, otherwise display "ET"
+## X Double debug debug bug (first run debug off/on toggles clog up debug area)
+## ! Add new functions to list
+## ! Update exception variable dump list (e.g. tZone)
+##
 
 
 import Tkinter                  #for graphics
@@ -159,6 +167,7 @@ lagLimit = 4                        #allowable update delay, in seconds
 checkSumPrev = 0                    #scoreboard switchover detection
 tPrev = 0                           #time of the last update, in seconds
 tTimeout = 30                       #timeout threshold, in minutes
+tZone = 0                           #time zone, in hours offset from Eastern
 numTeams = 30                       #number of teams in the league
 mute = False                        #mute on/of
 debug = False                       #debug mode on/off
@@ -257,7 +266,7 @@ def URLhandler():
     global URL; global fullText; global firstRun; global timeout;
     global tPrev; global tTimeout;  global lagLimit;
     
-    test = True
+    test = False
 
     # Read in the raw NHL scores information from ESPN
     if not test:
@@ -280,7 +289,7 @@ def URLhandler():
     # Read in a test file for development
     else:
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\timezones.htm', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm')
         else:
@@ -466,6 +475,7 @@ def checkScores():
 
     # Apply appropriate changes to the scoreboard display        
     if firstRun:
+        detectTimeZone()
         initializeScoreboard()
         setTeams()
         if noConfig:            
@@ -615,11 +625,11 @@ def renderGame(gameNum):
     # Text
     x = (sp+lw[large]+sp+tw+sp+lw[large]+sp)*column +sp+lw[large]+sp+tw/2
     y = sp+(lh[large]+sp)*(row)+scoreOffset
-    scoreText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Bold',fontSize[large]), fill='#333333')
+    scoreText[gameNum] = scoreboard.create_text(x, y, font=('TradeGothic-Bold',fontSize[large]), fill='#333333')
     y = sp+(lh[large]+sp)*(row)+periodOffset
-    periodText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',fontSize[small]), fill='#333333')
+    periodText[gameNum] = scoreboard.create_text(x, y, font=('TradeGothic-Light',fontSize[small]), fill='#333333')
     y = sp+(lh[large]+sp)*(row)+lh[large]/2-1
-    timeText[gameNum] = scoreboard.create_text(x, y, justify='center', font=('TradeGothic-Light',fontSize[small]), fill='#333333')
+    timeText[gameNum] = scoreboard.create_text(x, y, font=('TradeGothic-Light',fontSize[small]), fill='#333333')
     
     # Home team images
     x = (sp+lw[large]+sp+tw+sp+lw[large]+sp)*column +sp+lw[large]+sp+tw+sp+lw[large]/2
@@ -640,7 +650,7 @@ def renderGame(gameNum):
 ##  Set Teams
 ##
 ##  Configures the team names, IDs, and logos, then calls updateScoreboard to
-##  configure the score and period/time text. Should only be used one time, upon
+##  configure the score and period/time text. Only needs to be called once, upon
 ##  the first run of checkScores(). loadImages() and initializeScoreboard() must
 ##  be called (or have previously been called) prior to setTeams().
 ##
@@ -705,6 +715,34 @@ def setTeams():
 
 #######################################
 ##
+##  Detect Time Zone
+##
+##  Determines the local time zone for the purpose of shifting game start times.
+##  Only needs to be called once.
+##
+
+def detectTimeZone():
+
+    global tZone;
+
+    zones = ' '.join(time.tzname)
+
+    if 'Eastern' in zones:
+        tZone = 0
+    elif 'Central' in zones:
+        tZone = 1
+    elif 'Mountain' in zones:
+        tZone = 2
+    elif 'Pacific' in zones:
+        tZone = 3
+    else:
+        tZone = -1
+
+    return
+
+
+#######################################
+##
 ##  Update Scoreboard
 ##
 ##  Configures the score and period/time text based on the most current data.
@@ -715,6 +753,7 @@ def updateScoreboard():
 
     global scoreboard; global numGames; global gameStatus; global timePeriod
     global periodText; global scoreText; global timeText; global scores;
+    global tZone;
 
     # Loop through the games
     for gameNum in range(numGames):
@@ -722,8 +761,25 @@ def updateScoreboard():
         # Games not yet started (0)
         if gameStatus[gameNum] == 0:
             gameTime = timePeriod[gameNum]
-            if 'ET' in gameTime:
+
+            # Account for time zones
+            if tZone > 0:
+                hourMarker = gameTime.find(':')
+                hour = int(gameTime[:hourMarker])
+                hour += tZone
+                if hour >= 12:
+                    if 'PM' in gameTime:
+                        gameTime = gameTime.replace('PM', 'AM')
+                    else:
+                        gameTime = gameTime.replace('AM', 'PM')
+                    if hour > 12:
+                        hour %= 12                
+                gameTime = str(hour)+gameTime[hourMarker:]
+
+            # Remove 'ET'
+            if tZone >= 0:
                 gameTime = gameTime[0:len(gameTime)-3]
+                
             scoreboard.itemconfig(periodText[gameNum], text='')
             scoreboard.itemconfig(scoreText[gameNum], text='')  
             scoreboard.itemconfig(timeText[gameNum], text=gameTime)
@@ -736,7 +792,6 @@ def updateScoreboard():
             scoreboard.itemconfig(timeText[gameNum], text='')
             
     # Debug text
-    timeNow = time.localtime()
     updateTime = time.strftime('%I:%M:%S %p')
     logHandler('Scoreboard updated at '+updateTime, 'info')
 
@@ -1031,13 +1086,14 @@ def toggleMute():
 
 def toggleDebug():
 
-    global debug; global debugText; global messages;
+    global debug; global firstRun; global debugText; global messages;
     global ww; global wh; global sp; global dh; global fontSize;
     
     # Turn debug mode off and delete/hide everything
     if debug:
         debug = False
-        logHandler('Debug mode off', 'debug')
+        if not firstRun:
+            logHandler('Debug mode off', 'debug')
         messages.delete('all')
         messages.pack_forget()
         wh -= dh
@@ -1045,7 +1101,8 @@ def toggleDebug():
     # Turn debug mode on and display the appropriate messages
     else:
         debug = True
-        logHandler('Debug mode on', 'debug')
+        if not firstRun:
+            logHandler('Debug mode on', 'debug')
         x = ww/2
         y = sp
         for index in range(len(debugText)):
@@ -1108,15 +1165,26 @@ def configureFavorites():
     popup.protocol('WM_DELETE_WINDOW', closePopup)
     noConfig = True
     if noConfig:
-        instructions = selection = Tkinter.Canvas(popup, highlightthickness=0, background='gray')
+        instructions = Tkinter.Canvas(popup, highlightthickness=0, background='gray')
         instructions.config(width=(sp+lw[small])*configColumns+sp, height=ih)
-        #x = sp
-        #y = sp
-        #debugList = ['']*debugLength
-        #for index in range(len(debugText)):
-        #instructions.create_text(x, y, justify='center', \
+        x = ((sp+lw[small])*configColumns+sp)/2
+        y = sp
+        instructionLength = 3
+        #instructions = [0]*instructionLength
+        #for index in range(instructionLength):
+        #    instructions = instructions.create_text(x, y, justify='left', \
         #                                font=('TradeGothic-Light',fontSize[small]), \
-        #                                fill='#333333', text='lorum ipsum dolor')
+        #                                fill='#333333')
+        instructions.create_text(x, sp, font=('TradeGothic-Light',fontSize[small]), \
+                                        fill='#333333', text = 'Click on a team below to select it as a favorite.')
+        instructions.create_text(x, sp*2, font=('TradeGothic-Light',fontSize[small]), \
+                                        fill='#333333', text = 'Goal horns will play whenever tracked teams score. (Favorites are tracked by default.)')
+        instructions.create_text(x, sp*3, font=('TradeGothic-Light',fontSize[small]), \
+                                        fill='#333333', text = 'You can track or untrack a team on the scoreboard by clicking on it.')
+        
+        #instructions.configure(instructionList[2], text='Click on a team below to select it as a favorite.')
+#Goal horns will play whenever tracked teams score. Favorites are tracked by default.
+#You can track or untrack a team on the scoreboard by clicking on it.
 
         instructions.pack()
 
@@ -1271,7 +1339,7 @@ def saveConfig():
 ##
 ##  Loads the team logo images for the purpose of filling the scoreboard.
 ##  Also loads the goal lamp glow animation frames, logo drop shadows, and a
-##  splash screen image. Should only be used one time. 
+##  splash screen image. Only needs to be called once. 
 ##
 
 def loadImages():
@@ -1308,7 +1376,7 @@ def loadImages():
 ##  Load Horns
 ##
 ##  Sets the audio filenames for the goal horns of tracked teams.
-##  Should only be used one time.
+##  Only needs to be called once.
 ##
     
 def loadHorns():
