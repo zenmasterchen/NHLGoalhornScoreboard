@@ -21,6 +21,7 @@
 ##  initializeScoreboard()
 ##  renderGame(gameNum) *
 ##  setTeams() *
+##  detectTimeZone()
 ##  updateScoreboard() *
 ##
 ##  toggleLamps()
@@ -36,7 +37,7 @@
 ##  toggleDebug()
 ##  updateDebug()
 ##  configureFavorites()
-##  popupClick(event) *
+##  selectionClick(event) *
 ##  closePopup() *
 ##
 ##  loadConfig()
@@ -126,7 +127,7 @@
 ##   X Clean up variables and scopes
 ##
 ## W Change refresh rate to 15s, lag limit to 5s
-## W Dynamic refreshing (double refresh time if all games finished or not yet started)
+## ! Dynamic refreshing (double refresh time if all games finished or not yet started)
 ## \ Instructions (display when scoresheet/favorites not detected?)
 ##   \ Location/logistics
 ##     X Place in canvas above favorites configuration
@@ -138,8 +139,10 @@
 ##   X time.timezone for offset (Eastern = 18000, Central = 21600 as of 3/4)
 ##   X Just support the US time zones, otherwise display "ET"
 ## X Double debug debug bug (first run debug off/on toggles clog up debug area)
-## ! Add new functions to list
-## ! Update exception variable dump list (e.g. tZone)
+## X Add new functions to list
+## X Update exception variable dump list
+##   X noConfig, tPrev, tZone
+##   X mute, debug, multiColumn, ww, wh
 ##
 
 
@@ -504,10 +507,13 @@ def checkScores():
 def checkScoresWrapper():
 
     global root; global refreshRate; global fullText;
-    global firstRun; global timeout; global Games
+    global firstRun; global noConfig; global timeout; global numGames
     global teams; global teamIDs; global scores;
     global goalFlag; global tracking;
     global timePeriod; global gameStatus; global favorites;
+
+
+    global mute; global debug; global multiColumn; global ww; global wh;
 
     try:
         checkScores()
@@ -517,8 +523,10 @@ def checkScoresWrapper():
         logHandler('CHECKSCORES ERROR', 'exception')
         logging.exception(details)
         logging.debug('Error circumstances to follow...')
-        logging.debug('\tfirstRun = %s, timeout = %s, numGames = %i', \
-                      firstRun, timeout, numGames)
+        logging.debug('\tfirstRun = %s, noConfig = %s, timeout = %s, numGames = %i', \
+                      firstRun, noConfig, timeout, numGames)
+        logging.debug('\tmute = %s, debug = %s, multiColumn = %s, ww = %i, wh = %i', \
+                      mute, debug, multiColumn, ww, wh)
         logging.debug('\tteams = %s', ', '.join(teams))
         logging.debug('\tteamIDs = %s', ', '.join(map(str, teamIDs)))
         logging.debug('\tscores = %s', ', '.join(map(str, scores)))
@@ -728,14 +736,19 @@ def detectTimeZone():
     zones = ' '.join(time.tzname)
 
     if 'Eastern' in zones:
+        logHandler('Eastern time zone detected', 'debug')
         tZone = 0
     elif 'Central' in zones:
+        logHandler('Central time zone detected', 'debug')
         tZone = 1
     elif 'Mountain' in zones:
+        logHandler('Mountain time zone detected', 'debug')
         tZone = 2
     elif 'Pacific' in zones:
+        logHandler('Pacific time zone detected', 'debug')
         tZone = 3
     else:
+        logHandler('Other time zone detected', 'debug')
         tZone = -1
 
     return
