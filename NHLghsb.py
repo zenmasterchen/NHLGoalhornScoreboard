@@ -126,8 +126,8 @@
 ##   X Debug doesn't scale
 ##   X Clean up variables and scopes
 ##
-## W Change refresh rate to 15s, lag limit to 5s
-## ! Dynamic refreshing (double refresh time if all games finished or not yet started)
+## X Change refresh rate to 15s, lag limit to 5s (was 10s and 4s)
+## X Dynamic refreshing (double refresh time if all games finished or not yet started)
 ## \ Instructions (display when scoresheet/favorites not detected?)
 ##   \ Location/logistics
 ##     X Place in canvas above favorites configuration
@@ -143,6 +143,7 @@
 ## X Update exception variable dump list
 ##   X noConfig, tPrev, tZone
 ##   X mute, debug, multiColumn, ww, wh
+## X Splash screen debug misalignment
 ##
 
 
@@ -164,9 +165,10 @@ from shutil import copyfile     #for high-level file operations
 # Administrative information
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
+dynamicRefresh = False
 timeout = False                     #delayed update flag
-refreshRate = 10                    #how often to update, in seconds
-lagLimit = 4                        #allowable update delay, in seconds
+refreshRate = 15                    #how often to update, in seconds
+lagLimit = 5                        #allowable update delay, in seconds
 checkSumPrev = 0                    #scoreboard switchover detection
 tPrev = 0                           #time of the last update, in seconds
 tTimeout = 30                       #timeout threshold, in minutes
@@ -292,7 +294,7 @@ def URLhandler():
     # Read in a test file for development
     else:
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\timezones.htm', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\allstar.htm', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm')
         else:
@@ -321,6 +323,7 @@ def checkScores():
     global timePeriod; global gameStatus; 
     global teams; global teamIDs; global scores; 
     global goalFlags; global tracking; global abbrev; global horns;
+    global dynamicRefresh;
 
 
     # Load assets
@@ -347,6 +350,9 @@ def checkScores():
         logHandler('No game(s) detected', 'debug')
         numGames = 0
         splashScreen()
+        if not dynamicRefresh:
+            dynamicRefresh = True
+            logHandler('Dynamic refresh enabled', 'debug')
         return
     if len(gamesArray) != numGames and not firstRun:
         logHandler('New game(s) detected', 'debug')
@@ -476,6 +482,15 @@ def checkScores():
         firstRun = True
     checkSumPrev = checkSum
 
+    # Detect changes in activity/inactivity to modify refresh rates
+    if all(status is 0 or status is 9 for status in gameStatus):
+        if not dynamicRefresh:
+            dynamicRefresh = True
+            logHandler('Dynamic refresh enabled', 'debug')
+    elif dynamicRefresh:
+        dynamicRefresh = False
+        logHandler('Dynamic refresh disabled', 'debug')
+
     # Apply appropriate changes to the scoreboard display        
     if firstRun:
         detectTimeZone()
@@ -492,7 +507,7 @@ def checkScores():
     
     # No longer a rookie
     firstRun = False
-
+    
     return
 
 
@@ -507,24 +522,25 @@ def checkScores():
 def checkScoresWrapper():
 
     global root; global refreshRate; global fullText;
-    global firstRun; global noConfig; global timeout; global numGames
+    global firstRun; global noConfig; global dynamicRefresh; global timeout; global numGames;
+    global mute; global debug; global multiColumn; global ww; global wh;
     global teams; global teamIDs; global scores;
     global goalFlag; global tracking;
     global timePeriod; global gameStatus; global favorites;
 
-
-    global mute; global debug; global multiColumn; global ww; global wh;
-
     try:
         checkScores()
-        root.after(refreshRate*1000, checkScoresWrapper)
+        if dynamicRefresh:
+            root.after(refreshRate*2*1000, checkScoresWrapper)
+        else:
+            root.after(refreshRate*1000, checkScoresWrapper)
     except Exception as details:
         root.after(refreshRate*1000, checkScoresWrapper)
         logHandler('CHECKSCORES ERROR', 'exception')
         logging.exception(details)
         logging.debug('Error circumstances to follow...')
-        logging.debug('\tfirstRun = %s, noConfig = %s, timeout = %s, numGames = %i', \
-                      firstRun, noConfig, timeout, numGames)
+        logging.debug('\tfirstRun = %s, noConfig = %s, dynamicRefresh = %s, timeout = %s, numGames = %i', \
+                      firstRun, noConfig, dynamicRefresh, timeout, numGames)
         logging.debug('\tmute = %s, debug = %s, multiColumn = %s, ww = %i, wh = %i', \
                       mute, debug, multiColumn, ww, wh)
         logging.debug('\tteams = %s', ', '.join(teams))
@@ -736,19 +752,14 @@ def detectTimeZone():
     zones = ' '.join(time.tzname)
 
     if 'Eastern' in zones:
-        logHandler('Eastern time zone detected', 'debug')
         tZone = 0
     elif 'Central' in zones:
-        logHandler('Central time zone detected', 'debug')
         tZone = 1
     elif 'Mountain' in zones:
-        logHandler('Mountain time zone detected', 'debug')
         tZone = 2
     elif 'Pacific' in zones:
-        logHandler('Pacific time zone detected', 'debug')
         tZone = 3
     else:
-        logHandler('Other time zone detected', 'debug')
         tZone = -1
 
     return
@@ -898,7 +909,7 @@ def splashScreen():
 
     # Create an appropriate layout
     ww = sp+lw[large]+sp+tw+sp+lw[large]+sp
-    wh = sp*1.5 + sh + sp*1.5
+    wh = int(sp*1.5 + sh + sp*1.5)
     scoreboard.config(width=ww, height=wh)
 
     # Draw the image
@@ -1122,8 +1133,9 @@ def toggleDebug():
             debugText[index] = messages.create_text(x, y, justify='center', \
                                         font=('Consolas',fontSize[small]), fill='#BBBBBB')
             y += sp
+        messages.config(width=ww, height=dh)
         messages.pack()
-        wh += dh        
+        wh += dh
         updateDebug()
     
     return
@@ -1176,7 +1188,7 @@ def configureFavorites():
     popup.iconbitmap(progDir+'\\Assets\\icon.ico')
     popup.resizable(width=False, height=False)
     popup.protocol('WM_DELETE_WINDOW', closePopup)
-    noConfig = True
+    #noConfig = True #FOR DEVELOPMENT ONLY
     if noConfig:
         instructions = Tkinter.Canvas(popup, highlightthickness=0, background='gray')
         instructions.config(width=(sp+lw[small])*configColumns+sp, height=ih)
