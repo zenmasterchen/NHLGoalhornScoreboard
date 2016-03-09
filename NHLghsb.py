@@ -144,6 +144,8 @@
 ##   X noConfig, tPrev, tZone
 ##   X mute, debug, multiColumn, ww, wh
 ## X Splash screen debug misalignment
+## X Disable dynamic refresh for timeouts
+## X Change lamp animation length to be not hardcoded
 ##
 
 
@@ -165,7 +167,7 @@ from shutil import copyfile     #for high-level file operations
 # Administrative information
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
-dynamicRefresh = False
+dynamicRefresh = False              #dynamic refresh flag
 timeout = False                     #delayed update flag
 refreshRate = 15                    #how often to update, in seconds
 lagLimit = 5                        #allowable update delay, in seconds
@@ -229,6 +231,7 @@ tw = 70                             #text width
 scoreOffset = 15                    #score text offset
 periodOffset = 41                   #period text offset
 fontSize = [26, 10]                 #font sizes
+lampLength = 10                     #lamp animation length, in seconds
 ww = 0                              #window width
 wh = 0                              #window height
 sw = 128                            #splash screen width
@@ -269,7 +272,7 @@ fullText = ''
 def URLhandler():
 
     global URL; global fullText; global firstRun; global timeout;
-    global tPrev; global tTimeout;  global lagLimit;
+    global tPrev; global tTimeout;  global lagLimit; global dynamicRefresh;
     
     test = False
 
@@ -289,6 +292,9 @@ def URLhandler():
             if lag > tTimeout*60:
                 logHandler('TIMEOUT', 'warning')
                 timeout = True
+                if dynamicRefresh:
+                    dynamicRefresh = False
+                    logHandler('Dynamic refresh disabled', 'debug')
         tPrev = t1
 
     # Read in a test file for development
@@ -335,6 +341,9 @@ def checkScores():
     if not firstRun and time.time()-tPrev > tTimeout*60:
         logHandler('TIMEOUT', 'warning')
         timeout = True
+        if dynamicRefresh:
+            dynamicRefresh = False
+            logHandler('Dynamic refresh disabled', 'debug')         
     else:
         timeout = False
     
@@ -851,10 +860,10 @@ def toggleLamps():
 
 def animateLamp(lamp):
 
-    global scoreboard; global refreshRate; global lampFrames; global numFrames;
+    global scoreboard; global lampLength; global lampFrames; global numFrames;
 
     scoreboard.itemconfig(lamp, state='normal')
-    for cycle in range(10):
+    for cycle in range(lampLength):
         for frame in range(1, numFrames):
             tOn = int((cycle+frame/(2.0*numFrames))*1000)
             tOff = int((cycle+(numFrames*2-frame)/(2.0*numFrames))*1000)
@@ -864,7 +873,7 @@ def animateLamp(lamp):
                         scoreboard.itemconfig(lamp, image=lampFrames[large][frame]))
         scoreboard.after(int((cycle+0.5)*1000), lambda frame=frame: \
                       scoreboard.itemconfig(lamp, image=lampFrames[large][frame]))            
-    scoreboard.after(refreshRate*1000, lambda: \
+    scoreboard.after(lampLength*1000, lambda: \
                     scoreboard.itemconfig(lamp, state='hidden'))
 
 
