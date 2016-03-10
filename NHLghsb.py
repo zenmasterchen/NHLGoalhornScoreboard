@@ -128,13 +128,24 @@
 ##
 ## X Change refresh rate to 15s, lag limit to 5s (was 10s and 4s)
 ## X Dynamic refreshing (double refresh time if all games finished or not yet started)
-## \ Instructions (display when scoresheet/favorites not detected?)
-##   \ Location/logistics
+## N Instructions (display when scoresheet/favorites not detected?)
+##   N Location/logistics
 ##     X Place in canvas above favorites configuration
 ##     W Hide main scoreboard until favorites have been configured?
 ##   W Design
-##   ! Copy
-##
+##   N Copy
+##   X Remove instructions
+## \ Tutorial
+##   X Design
+##   X Copy
+##   - Implementation
+##     ! New window creation
+##     ! Text and image placement
+##     - Navigation
+##       - Click to go to next page/screen
+##       - Quit to go to the next page/screen
+##     - Animate images
+##     - Display before configure favorites
 ## X Time zone compensation (for not yet started games)
 ##   X time.timezone for offset (Eastern = 18000, Central = 21600 as of 3/4)
 ##   X Just support the US time zones, otherwise display "ET"
@@ -237,7 +248,8 @@ wh = 0                              #window height
 sw = 128                            #splash screen width
 sh = 146                            #splash screen height
 dh = sp*(debugLength+1)             #debug height
-ih = 100                            #instruction height
+#ih = 100                            
+#iw = 
 multiColumn = False                 #multiple columns for small screens
 configRows = 5                      #number of rows for configuring favorites
 configColumns = 6                   #number of columns for configuring favorites
@@ -300,7 +312,7 @@ def URLhandler():
     # Read in a test file for development
     else:
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\allstar.htm', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm')
         else:
@@ -872,7 +884,7 @@ def animateLamp(lamp):
             scoreboard.after(tOff, lambda frame=frame: \
                         scoreboard.itemconfig(lamp, image=lampFrames[large][frame]))
         scoreboard.after(int((cycle+0.5)*1000), lambda frame=frame: \
-                      scoreboard.itemconfig(lamp, image=lampFrames[large][frame]))            
+                      scoreboard.itemconfig(lamp, image=lampFrames[large][numFrames]))
     scoreboard.after(lampLength*1000, lambda: \
                     scoreboard.itemconfig(lamp, state='hidden'))
 
@@ -1180,7 +1192,6 @@ def configureFavorites():
     global configRows; global configColumns; global lh; global lw;
     global configLogos; global configShadows;
     global logoImages; global shadowImage;
-    global noConfig; global ih;
 
     # Avoid creating duplicate configuration windows
     try:
@@ -1197,35 +1208,6 @@ def configureFavorites():
     popup.iconbitmap(progDir+'\\Assets\\icon.ico')
     popup.resizable(width=False, height=False)
     popup.protocol('WM_DELETE_WINDOW', closePopup)
-    #noConfig = True #FOR DEVELOPMENT ONLY
-    if noConfig:
-        instructions = Tkinter.Canvas(popup, highlightthickness=0, background='gray')
-        instructions.config(width=(sp+lw[small])*configColumns+sp, height=ih)
-        x = ((sp+lw[small])*configColumns+sp)/2
-        y = sp
-        instructionLength = 3
-        #instructions = [0]*instructionLength
-        #for index in range(instructionLength):
-        #    instructions = instructions.create_text(x, y, justify='left', \
-        #                                font=('TradeGothic-Light',fontSize[small]), \
-        #                                fill='#333333')
-        instructions.create_text(x, sp, font=('TradeGothic-Light',fontSize[small]), \
-                                        fill='#333333', text = 'Click on a team below to select it as a favorite.')
-        instructions.create_text(x, sp*2, font=('TradeGothic-Light',fontSize[small]), \
-                                        fill='#333333', text = 'Goal horns will play whenever tracked teams score. (Favorites are tracked by default.)')
-        instructions.create_text(x, sp*3, font=('TradeGothic-Light',fontSize[small]), \
-                                        fill='#333333', text = 'You can track or untrack a team on the scoreboard by clicking on it.')
-        
-        #instructions.configure(instructionList[2], text='Click on a team below to select it as a favorite.')
-#Goal horns will play whenever tracked teams score. Favorites are tracked by default.
-#You can track or untrack a team on the scoreboard by clicking on it.
-
-        instructions.pack()
-
-
-
-
-
     selection = Tkinter.Canvas(popup, highlightthickness=0, background='white')
     selection.config(width=(sp+lw[small])*configColumns+sp, height=(sp+lh[small])*configRows+sp)
     selection.bind('<Button-1>', selectionClick)
@@ -1393,7 +1375,7 @@ def loadImages():
     logoImages[small][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\NHL.gif')
     logoImages[bw][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\NHL.gif')
                                  
-    for index in range(numFrames):
+    for index in range(numFrames+1):
         lampFrames[large][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\lamp'+str(index*10)+'.gif')
         lampFrames[small][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\lamp'+str(index*10)+'.gif')                                                   
 
