@@ -1,4 +1,4 @@
-################################################################################
+﻿################################################################################
 ##
 ##  NHL Goal Horn Scoreboard
 ##
@@ -38,7 +38,11 @@
 ##  updateDebug()
 ##  configureFavorites()
 ##  selectionClick(event) *
-##  closePopup() *
+##  closeConfig() *
+##
+##  startTutorial()
+##  navigateTutorial(direction)
+##  tutorialClick(event)
 ##
 ##  loadConfig()
 ##  saveConfig()
@@ -135,17 +139,21 @@
 ##   W Design
 ##   N Copy
 ##   X Remove instructions
-## \ Tutorial
+## X Tutorial
 ##   X Design
 ##   X Copy
-##   - Implementation
-##     ! New window creation
-##     ! Text and image placement
-##     - Navigation
-##       - Click to go to next page/screen
-##       - Quit to go to the next page/screen
-##     - Animate images
-##     - Display before configure favorites
+##   X Implementation
+##     X New window creation
+##     X Text and image placement
+##     X Navigation
+##       X Click to go to next page/screen
+##       N Quit to go to the next page/screen
+##     X Dynamic images
+##       N Hover over navigation (not possible with canvas binding)
+##       X Animate images
+##     X Display before configure favorites
+##     X Clean up functions
+##     X Add to function list
 ## X Time zone compensation (for not yet started games)
 ##   X time.timezone for offset (Eastern = 18000, Central = 21600 as of 3/4)
 ##   X Just support the US time zones, otherwise display "ET"
@@ -157,6 +165,9 @@
 ## X Splash screen debug misalignment
 ## X Disable dynamic refresh for timeouts
 ## X Change lamp animation length to be not hardcoded
+## - Annotate function headers with argument descriptions
+## - Clean up to-do list
+## W Remove exception raises
 ##
 
 
@@ -233,12 +244,21 @@ lamps = []
 debugText = [0]*debugLength
 configLogos = [0]*numTeams
 configShadows = [0]*numTeams
+tutorialIndex = -1
+tutorialLine0 = 0
+tutorialLine1 = 0
+tutorialShadow = 0
+tutorialLamp = 0
+tutorialLogo = 0
+tutorialBack = 0
+tutorialNext = 0
+animationStack = [0]
 
 # Display parameters
-sp = 20                             #spacer
-lh = [50, 30]                       #logo height
+sp = 20                             #scoreboard spacer
 lw = [100, 60]                      #logo width
-tw = 70                             #text width
+lh = [50, 30]                       #logo height
+cw = 70 #cw center width                            #score/time information width
 scoreOffset = 15                    #score text offset
 periodOffset = 41                   #period text offset
 fontSize = [26, 10]                 #font sizes
@@ -248,15 +268,19 @@ wh = 0                              #window height
 sw = 128                            #splash screen width
 sh = 146                            #splash screen height
 dh = sp*(debugLength+1)             #debug height
-#ih = 100                            
-#iw = 
+tw = 350                            #tutorial width
+th = 192                            #tutorial height
+tp = 36                             #tutorial spacer
+to = 24                             #tutorial offset
+instructionOffset = 3               #tutorial line 0 offset
+logoOffset = 1                      #tutorial logo offset
 multiColumn = False                 #multiple columns for small screens
 configRows = 5                      #number of rows for configuring favorites
 configColumns = 6                   #number of columns for configuring favorites
 large = 0                           #size index for team logos
 small = 1                           #size index for configuring favorites
 bw = 2                              #size index for configuring favorites
-    
+
 # File information
 try: progDir = os.path.dirname(os.path.abspath(__file__))
 except NameError: progDir = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -343,11 +367,6 @@ def checkScores():
     global goalFlags; global tracking; global abbrev; global horns;
     global dynamicRefresh;
 
-
-    # Load assets
-    if firstRun:    
-        loadImages()
-        loadHorns()
 
     # Suppress goal horns and lamps if it's been too long since the last run
     if not firstRun and time.time()-tPrev > tTimeout*60:
@@ -445,7 +464,7 @@ def checkScores():
                     else:
                         logHandler('Playing the goal horn for '+abbrev[teamIDs[index*2]], 'info')
                         winsound.PlaySound(horns[teamIDs[index*2]], \
-                                       winsound.SND_FILENAME | winsound.SND_ASYNC)
+                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
                     hornPlayed = True
             scores[index*2] = newScore
             game = game[game.find(' ')+2:]
@@ -462,7 +481,7 @@ def checkScores():
                     else:
                         logHandler('Playing the goal horn for '+abbrev[teamIDs[index*2+1]], 'info')
                         winsound.PlaySound(horns[teamIDs[index*2+1]], \
-                                       winsound.SND_FILENAME | winsound.SND_ASYNC)
+                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
                     hornPlayed = True
             scores[index*2+1] = newScore
             
@@ -517,8 +536,8 @@ def checkScores():
         detectTimeZone()
         initializeScoreboard()
         setTeams()
-        if noConfig:            
-            configureFavorites()
+        #if noConfig:            
+        #    configureFavorites()
         if debug:
             toggleDebug()
             toggleDebug()
@@ -589,7 +608,7 @@ def checkScoresWrapper():
 def initializeScoreboard():
 
     global scoreboard; global messages; global numGames; global multiColumn;
-    global sp; global lh; global ww; global wh; global dh;
+    global sp; global lw; global lh; global cw; global ww; global wh; global dh;
     global scoreText; global periodText; global timeText;
     global teamLogos; global lamps; global shadows;
     global teamLogosX; global teamLogosY;
@@ -610,12 +629,12 @@ def initializeScoreboard():
 
     # Create an appropriate layout
     wh = sp+(lh[large]+sp)*numGames
-    ww = sp+lw[large]+sp+tw+sp+lw[large]+sp
+    ww = sp+lw[large]+sp+cw+sp+lw[large]+sp
     if wh+dh > root.winfo_screenheight():
         logHandler('Multiple columns enabled', 'debug')
         multiColumn = True
         wh = sp+(lh[large]+sp)*(numGames/2+numGames%2)
-        ww = sp+lw[large]+sp+tw+sp+lw[large] + sp + sp+lw[large]+sp+tw+sp+lw[large] + sp
+        ww = sp+lw[large]+sp+cw+sp+lw[large] + sp + sp+lw[large]+sp+cw+sp+lw[large] + sp
     else:
         multiColumn = False;
     scoreboard.config(width=ww, height=wh)
@@ -642,7 +661,7 @@ def initializeScoreboard():
 
 def renderGame(gameNum):
 
-    global scoreboard; global sp; global lh; global lw; global tw;
+    global scoreboard; global sp; global lh; global lw; global cw;
     global lamps; global shadows; global shadowImage; global lampFrames;
     global scoreText; global periodText; global timeText;
     global scoreOffset; global periodOffset; global fontSize;
@@ -657,7 +676,7 @@ def renderGame(gameNum):
        column = 0
     
     # Away team images 
-    x = (sp+lw[large]+sp+tw+sp+lw[large]+sp)*column +sp+lw[large]/2
+    x = (sp+lw[large]+sp+cw+sp+lw[large]+sp)*column +sp+lw[large]/2
     y = sp+(lh[large]+sp)*(row)+lh[large]/2
     shadows[gameNum*2] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage[large], state='hidden')
@@ -668,7 +687,7 @@ def renderGame(gameNum):
     teamLogosY[gameNum*2] = y
 
     # Text
-    x = (sp+lw[large]+sp+tw+sp+lw[large]+sp)*column +sp+lw[large]+sp+tw/2
+    x = (sp+lw[large]+sp+cw+sp+lw[large]+sp)*column +sp+lw[large]+sp+cw/2
     y = sp+(lh[large]+sp)*(row)+scoreOffset
     scoreText[gameNum] = scoreboard.create_text(x, y, font=('TradeGothic-Bold',fontSize[large]), fill='#333333')
     y = sp+(lh[large]+sp)*(row)+periodOffset
@@ -677,7 +696,7 @@ def renderGame(gameNum):
     timeText[gameNum] = scoreboard.create_text(x, y, font=('TradeGothic-Light',fontSize[small]), fill='#333333')
     
     # Home team images
-    x = (sp+lw[large]+sp+tw+sp+lw[large]+sp)*column +sp+lw[large]+sp+tw+sp+lw[large]/2
+    x = (sp+lw[large]+sp+cw+sp+lw[large]+sp)*column +sp+lw[large]+sp+cw+sp+lw[large]/2
     y = sp+(lh[large]+sp)*(row)+lh[large]/2
     shadows[gameNum*2+1] = scoreboard.create_image(x, y, anchor='center', \
                                             image=shadowImage[large], state='hidden')
@@ -929,7 +948,7 @@ def splashScreen():
     scoreboard.delete('all')
 
     # Create an appropriate layout
-    ww = sp+lw[large]+sp+tw+sp+lw[large]+sp
+    ww = sp+lw[large]+sp+cw+sp+lw[large]+sp
     wh = int(sp*1.5 + sh + sp*1.5)
     scoreboard.config(width=ww, height=wh)
 
@@ -1207,7 +1226,7 @@ def configureFavorites():
     popup.wm_title('Configure Favorites')
     popup.iconbitmap(progDir+'\\Assets\\icon.ico')
     popup.resizable(width=False, height=False)
-    popup.protocol('WM_DELETE_WINDOW', closePopup)
+    popup.protocol('WM_DELETE_WINDOW', closeConfig)
     selection = Tkinter.Canvas(popup, highlightthickness=0, background='white')
     selection.config(width=(sp+lw[small])*configColumns+sp, height=(sp+lh[small])*configRows+sp)
     selection.bind('<Button-1>', selectionClick)
@@ -1218,9 +1237,9 @@ def configureFavorites():
         for column in range(configColumns):
             x = sp+(lw[small]+sp)*column+lw[small]/2
             y = sp+(lh[small]+sp)*row+lh[small]/2
-            configShadows[teamID] = selection.create_image(x,y, anchor='center', \
+            configShadows[teamID] = selection.create_image(x, y, anchor='center', \
                                         image=shadowImage[small], state='hidden')
-            configLogos[teamID] = selection.create_image(x,y, anchor='center')
+            configLogos[teamID] = selection.create_image(x, y, anchor='center')
             if teamID in favorites:
                 selection.itemconfig(configLogos[teamID], image=logoImages[small][teamID])
                 selection.itemconfig(configShadows[teamID], state='normal')
@@ -1262,18 +1281,177 @@ def selectionClick(event):
 
 #######################################
 ##
-##  Close Popup Window
+##  Close Configuration Window
 ##
 ##  Saves configuration information and closes the Configure Favorites popup
 ##  window. Triggered via Tkinter's protocol capability.
 ##
 
-def closePopup():
+def closeConfig():
 
     global popup;
     
     saveConfig()
     popup.destroy()
+
+    return
+
+
+#######################################
+##
+##  Start Tutorial
+##
+##  Initializes the main layout elements of the tutorial. Calls
+##  navigateTutorial() for drawing assistance.
+##
+
+def startTutorial():
+
+    global root; global popup; global tutorial; global tutorialIndex;
+    global tutorialLine0; global tutorialLine1;
+    global tutorialShadow; global tutorialLamp; global tutorialLogo;
+    global tutorialBack; global tutorialNext;
+    global tw; global th; global tp; global to;
+    global instructionOffset; global logoOffset;
+    global shadowImage; global lampFrames; global logoImages;
+
+    # Tkinter-related (toplevel widget and canvas)
+    popup = Tkinter.Toplevel(root)
+    popup.wm_title('Tutorial')
+    popup.iconbitmap(progDir+'\\Assets\\icon.ico')
+    popup.resizable(width=False, height=False)
+    tutorial = Tkinter.Canvas(popup, highlightthickness=0, background='white')
+    tutorial.config(width=tw, height=th)
+    tutorial.bind('<Button-1>', tutorialClick)
+
+    # Text
+    x = tw/2
+    y = tp + instructionOffset
+    tutorialLine0 = tutorial.create_text(x, y, font=('TradeGothic-Light',14), fill='#333333')
+    y += to
+    tutorialLine1 = tutorial.create_text(x, y, font=('TradeGothic-Light',14), fill='#333333')
+
+    # Images
+    y = th-tp-to-logoOffset
+    tutorialShadow = tutorial.create_image(x, y, anchor='center', \
+                                            image=shadowImage[large], state='hidden')
+    tutorialLamp = tutorial.create_image(x, y, anchor='center', \
+                                            image=lampFrames[large][0], state='hidden')
+    tutorialLogo = tutorial.create_image(x, y, anchor='center', \
+                                            image=logoImages[large][PIT])
+    # Navigation
+    x = to
+    y = th/2
+    tutorialBack = tutorial.create_text(x, y, font=('TradeGothic-Light',30), \
+                                        fill='#BBBBBB', text='‹')
+    x = tw-to
+    tutorialNext = tutorial.create_text(x, y, font=('TradeGothic-Light',30), \
+                                        fill='#BBBBBB', text='›')            
+
+    # Start tutorial
+    tutorial.pack()
+    navigateTutorial('next')
+    logHandler('Tutorial started', 'info')
+    
+    return
+
+
+#######################################
+##
+##  Navigate Tutorial
+##
+##  Draws and animates elements for the tutorial pages. Gets called by
+##  initializeScoreboard() or is triggered via Tkinter's bind capability.
+##
+
+def navigateTutorial(direction):
+
+    global popup; global tutorial; global tutorialIndex;
+    global tutorialLine0; global tutorialLine1;
+    global tutorialShadow; global tutorialLamp; global tutorialLogo;
+    global tutorialBack; global tutorialNext;
+    global animationStack; 
+    global lampLength; global lampFrames; global numFrames;
+
+    # Determine the next tutorial page
+    if 'back' in direction.lower():
+        tutorialIndex -= 1
+        if tutorialIndex < 0:
+            tutorialIndex = 0
+            return
+    elif 'next' in direction.lower():
+        tutorialIndex += 1
+    else:
+        logHandler('INVALID TUTORIAL NAVIGATION', 'warning')
+        return
+
+    # Clear any animation from the previous tutorial page
+    for pop in range(len(animationStack)):
+        try:
+            tutorial.after_cancel(animationStack.pop())
+        except:
+            pass
+    animationStack = [0]
+
+    # Draw and animate the appropriate tutorial page (or close if finished)
+    if tutorialIndex is 0:
+        tutorial.itemconfig(tutorialBack, state='hidden')
+        tutorial.itemconfig(tutorialLine0, text='Click on teams on the scoreboard')
+        tutorial.itemconfig(tutorialLine1, text='to begin tracking them.')
+        tutorial.itemconfig(tutorialShadow, state='hidden')
+        tutorial.itemconfig(tutorialLamp, state='hidden')
+        for cycle in range(int(lampLength/2)):
+            animationStack.append(tutorial.after((cycle*2+1)*1000, lambda: \
+                           tutorial.itemconfig(tutorialShadow, state='normal')))
+            animationStack.append(tutorial.after((cycle*2+2)*1000, lambda: \
+                           tutorial.itemconfig(tutorialShadow, state='hidden')))    
+    elif tutorialIndex is 1:
+        tutorial.itemconfig(tutorialBack, state='normal')
+        tutorial.itemconfig(tutorialLine0, text='Goal horns will play whenever')
+        tutorial.itemconfig(tutorialLine1, text='tracked teams score.')
+        tutorial.itemconfig(tutorialShadow, state='hidden')
+        tutorial.itemconfig(tutorialLamp, state='normal')
+        tutorial.itemconfig(tutorialLamp, image=lampFrames[large][0])
+        for cycle in range(lampLength):
+            for frame in range(1, numFrames):
+                tOn = int((cycle+frame/(2.0*numFrames))*1000)
+                tOff = int((cycle+(numFrames*2-frame)/(2.0*numFrames))*1000)
+                animationStack.append(tutorial.after(tOn, lambda frame=frame: \
+                            tutorial.itemconfig(tutorialLamp, image=lampFrames[large][frame])))
+                animationStack.append(tutorial.after(tOff, lambda frame=frame: \
+                            tutorial.itemconfig(tutorialLamp, image=lampFrames[large][frame])))
+            animationStack.append(tutorial.after(int((cycle+0.5)*1000), lambda frame=frame: \
+                          tutorial.itemconfig(tutorialLamp, image=lampFrames[large][numFrames])))
+        animationStack.append(tutorial.after(lampLength*1000, lambda: \
+                        tutorial.itemconfig(tutorialLamp, state='hidden')))        
+    elif tutorialIndex is 2:
+        tutorial.itemconfig(tutorialLine0, text='Your favorite teams will be tracked')
+        tutorial.itemconfig(tutorialLine1, text='by default if they are playing.')
+        tutorial.itemconfig(tutorialShadow, state='normal')
+        tutorial.itemconfig(tutorialLamp, state='hidden')
+    else:
+        popup.destroy()
+        configureFavorites()
+    
+    return
+
+
+#######################################
+##
+##  Left Click in Tutorial
+##
+##  Determines the behavior of a left mouse button click in the Tutorial.
+##  Triggered via Tkinter's bind capability.
+##
+
+def tutorialClick(event):
+
+    global tw; global th; global tp; global to;
+
+    if tw-tp-to <= event.x:
+        navigateTutorial('next')
+    elif event.x <= tp+to:
+        navigateTutorial('back')
 
     return
 
@@ -1366,23 +1544,25 @@ def loadImages():
     global shadowImage; global splashImage;
 
     imageDirectory = progDir+'\\Assets\\Images\\'
+    try:
+        for index, team in enumerate(abbrev[:numTeams]):
+            logoImages[large][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\'+team+'.gif')
+            logoImages[small][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\'+team+'.gif')
+            logoImages[bw][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\'+team+'.gif')
+        logoImages[large][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\NHL.gif')
+        logoImages[small][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\NHL.gif')
+        logoImages[bw][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\NHL.gif')
+                                     
+        for index in range(numFrames+1):
+            lampFrames[large][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\lamp'+str(index*10)+'.gif')
+            lampFrames[small][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\lamp'+str(index*10)+'.gif')                                                   
 
-    for index, team in enumerate(abbrev[:numTeams]):
-        logoImages[large][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\'+team+'.gif')
-        logoImages[small][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\'+team+'.gif')
-        logoImages[bw][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\'+team+'.gif')
-    logoImages[large][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\NHL.gif')
-    logoImages[small][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\NHL.gif')
-    logoImages[bw][NHL] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\BW\\NHL.gif')
-                                 
-    for index in range(numFrames+1):
-        lampFrames[large][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\lamp'+str(index*10)+'.gif')
-        lampFrames[small][index] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\lamp'+str(index*10)+'.gif')                                                   
-
-    shadowImage[large] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\shadow.gif')
-    shadowImage[small] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\shadow.gif')
-                                                   
-    splashImage = Tkinter.PhotoImage(file=imageDirectory+'splash.gif')
+        shadowImage[large] = Tkinter.PhotoImage(file=imageDirectory+'\\Large\\shadow.gif')
+        shadowImage[small] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\shadow.gif')
+                                                       
+        splashImage = Tkinter.PhotoImage(file=imageDirectory+'splash.gif')
+    except:
+        logHandler('IMAGE LOAD ERROR', 'error')
 
     return
 
@@ -1423,12 +1603,12 @@ def logHandler(string, level):
         print string
 
         # Log to file
-        if level.lower == 'info': logging.info(string)
-        elif level.lower == 'debug': logging.debug(string)
-        elif level.lower == 'warning': logging.warning(string)
-        elif level.lower == 'error': logging.error(string)
-        elif level.lower == 'critical': logging.critical(string)
-        elif level.lower == 'exception':
+        if 'info' in level.lower(): logging.info(string)
+        elif 'debug' in level.lower(): logging.debug(string)
+        elif 'warning' in level.lower(): logging.warning(string)
+        elif 'error' in level.lower(): logging.error(string)
+        elif 'critical' in level.lower(): logging.critical(string)
+        elif 'exception' in level.lower():
             logging.exception(string)
             return
         else: logging.info(string)
@@ -1463,8 +1643,18 @@ scoreboard = Tkinter.Canvas(root, highlightthickness=0, background='white')
 messages = Tkinter.Canvas(root, highlightthickness=0, background='#333333')
 menu = Tkinter.Menu(root, tearoff=0)
 
+# Load assets
+loadImages()
+loadHorns()    
+
 # Load user data
 loadConfig()
+
+noConfig = True #DEV
+if noConfig:
+    startTutorial()   
+
+
    
 # Begin checking for scores
 checkScoresWrapper()
