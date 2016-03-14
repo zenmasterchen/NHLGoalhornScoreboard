@@ -2,13 +2,13 @@
 ##
 ##  NHL Goal Horn Scoreboard
 ##
-##  This programs tracks NHL scores in near real-time and blares a goal horn
+##  This program tracks NHL scores in near real-time and blares a goal horn
 ##  when favorite teams score.
 ##
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 02/25/16
+##  Last Revision: 03/14/16
 ##
 ##  Copyright (C) 2016 Austin Chen
 ##
@@ -54,7 +54,6 @@
 ##
 ## TO DO
 ## -----
-## W Readme
 ## X Save to executable
 ##   N Clean up imports (e.g. times)
 ##   X How to include font?
@@ -165,9 +164,17 @@
 ## X Splash screen debug misalignment
 ## X Disable dynamic refresh for timeouts
 ## X Change lamp animation length to be not hardcoded
-## - Annotate function headers with argument descriptions
+## X Avoid reading text from Program Files due to permissions
+##   X Hardcode config file text 
+##   X Delete template.cfg from Assets
+## X Annotate function headers with argument descriptions
+## X Modify vcredist installer message
+## X Remove exception raises and redundant logging.exception calls (test first)
+## - Readme
+## N License
+##
 ## - Clean up to-do list
-## W Remove exception raises
+## - Assemble all-time to-do list
 ##
 
 
@@ -258,7 +265,7 @@ animationStack = [0]
 sp = 20                             #scoreboard spacer
 lw = [100, 60]                      #logo width
 lh = [50, 30]                       #logo height
-cw = 70 #cw center width                            #score/time information width
+cw = 70                             #score/time information width
 scoreOffset = 15                    #score text offset
 periodOffset = 41                   #period text offset
 fontSize = [26, 10]                 #font sizes
@@ -317,10 +324,8 @@ def URLhandler():
         t0 = time.time()
         try:
             fullText = urlopen(URL).read()
-        except Exception as details:
+        except Exception:
             logHandler('URL OPEN ERROR', 'exception')
-            logging.exception(details)
-            raise
         t1 = time.time()
         lag = t1-t0
         if lag > lagLimit:
@@ -340,8 +345,7 @@ def URLhandler():
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm')
         else:
-            logHandler('FILE OPEN ERROR', 'exception')
-            logHandler('Unknown development machine', 'exception')
+            logHandler('UNKNOWN DEVELOPMENT MACHINE', 'error')
             raise
         fullText = doc.readline()
         doc.close()
@@ -574,10 +578,9 @@ def checkScoresWrapper():
             root.after(refreshRate*2*1000, checkScoresWrapper)
         else:
             root.after(refreshRate*1000, checkScoresWrapper)
-    except Exception as details:
+    except Exception:
         root.after(refreshRate*1000, checkScoresWrapper)
         logHandler('CHECKSCORES ERROR', 'exception')
-        logging.exception(details)
         logging.debug('Error circumstances to follow...')
         logging.debug('\tfirstRun = %s, noConfig = %s, dynamicRefresh = %s, timeout = %s, numGames = %i', \
                       firstRun, noConfig, dynamicRefresh, timeout, numGames)
@@ -592,7 +595,6 @@ def checkScoresWrapper():
         logging.debug('\tgameStatus = %s', ', '.join(map(str, gameStatus)))
         logging.debug('\tfavorites = %s', ', '.join(map(str, favorites)))
         logging.debug('\tfullText (may not be up to date) = %s', fullText)
-        raise #for development only, delete when finished debugging
 
     return
 
@@ -657,6 +659,8 @@ def initializeScoreboard():
 ##
 ##  Draws elements on the scoreboard for each game based on its
 ##  game number and position. Gets called by initializeScoreboard().
+##
+##  gameNum: number/order in which the ESPN feed lists the game (0-indexed)
 ##
 
 def renderGame(gameNum):
@@ -888,6 +892,8 @@ def toggleLamps():
 ##  Schedules the appearance of lamp image frames for animation purposes.
 ##  One single on-and-off animation cycle lasts 1 second.
 ##
+##  lamp: lamp Tkinter widget on the scoreboard to animate
+##
 
 def animateLamp(lamp):
 
@@ -1044,6 +1050,9 @@ def rightClick(event):
 ##  Determine if a mouse event is valid (over a team logo) and returns the
 ##  corresponding index. Gets called by leftClick(event).
 ##
+##  x: x coordinate of mouse event
+##  y: y coordinate of mouse event
+##
 
 def locateTeam(x, y):
 
@@ -1067,7 +1076,10 @@ def locateTeam(x, y):
 ##
 ##  Toggle Favorite
 ##
-##  Adds or removes a team from favorites. Gets called by rightClick(event).
+##  Adds or removes a team from favorites. Gets called by rightClick(event) and
+##  selectionClick(event).
+##
+##  teamID: teamID of the team to add or remove as favorite 
 ##
 
 def toggleFavorite(teamID):
@@ -1363,6 +1375,8 @@ def startTutorial():
 ##  Draws and animates elements for the tutorial pages. Gets called by
 ##  initializeScoreboard() or is triggered via Tkinter's bind capability.
 ##
+##  direction: direction in which to navigate ('back' or 'next')
+##
 
 def navigateTutorial(direction):
 
@@ -1400,7 +1414,7 @@ def navigateTutorial(direction):
         tutorial.itemconfig(tutorialLine1, text='to begin tracking them.')
         tutorial.itemconfig(tutorialShadow, state='hidden')
         tutorial.itemconfig(tutorialLamp, state='hidden')
-        for cycle in range(int(lampLength/2)):
+        for cycle in range(lampLength):
             animationStack.append(tutorial.after((cycle*2+1)*1000, lambda: \
                            tutorial.itemconfig(tutorialShadow, state='normal')))
             animationStack.append(tutorial.after((cycle*2+2)*1000, lambda: \
@@ -1498,31 +1512,43 @@ def loadConfig():
 
 def saveConfig():
 
-    global progDir; global appDir; global configFile;
+    global appDir; global configFile; global configRows; global configColumns;
     global favorites; global abbrev;
-    
-    try:
-        # Read in the template
-        template = open(progDir+'\\Assets\\Other\\template.cfg', 'r+')
-        configText = template.readlines()
-        template.close()
 
+    try:     
         # Compile the list of favorites
         if len(favorites) > 0:
             favoritesText = '['
             for teamID in favorites:
                 favoritesText += abbrev[teamID]+', '
-            configText[0] = favoritesText[:-2]+']\n'
+            favoritesText = favoritesText[:-2]+']\n'
 
-        # Write to the configuration favorites
-        doc = open(appDir+'\\favorites.cfg', 'w+')
-        doc.writelines(configText)
+        # Write to the configuration file
+        doc = open(appDir+'\\'+configFile, 'w+')
+        doc.write(favoritesText)
+        doc.write('\n'+'-'*52+'\n')
+        doc.write('\n\nINSTRUCTIONS\n')
+        doc.write('------------\n')
+        doc.write('Place your favorite team\'s three-letter abbreviation\n')
+        doc.write('inside the brackets above. Multiple teams should be\n')
+        doc.write('separated by commas.\n')
+        doc.write('\nExample: [COL, PIT] to track Colorado and Pittsburgh\n')
+        doc.write('\n\nTEAM ABBREVIATIONS\n')
+        doc.write('------------------\n')
+        teamID = 0
+        for row in range(configRows):
+            abbrevText = ''
+            for column in range(configColumns):
+                abbrevText += abbrev[teamID]+', '
+                teamID += 1
+            abbrevText = abbrevText[:-2]+'\n'
+            doc.write(abbrevText)
         doc.close()
                      
         logHandler('Favorites saved', 'info')
         
-    except:
-        logHandler('CONFIGURATION WRITE ERROR', 'error')
+    except Exception:
+        logHandler('CONFIGURATION WRITE ERROR', 'exception')
         
     return
 
@@ -1561,8 +1587,8 @@ def loadImages():
         shadowImage[small] = Tkinter.PhotoImage(file=imageDirectory+'\\Small\\shadow.gif')
                                                        
         splashImage = Tkinter.PhotoImage(file=imageDirectory+'splash.gif')
-    except:
-        logHandler('IMAGE LOAD ERROR', 'error')
+    except Exception:
+        logHandler('IMAGE LOAD ERROR', 'exception')
 
     return
 
@@ -1593,6 +1619,9 @@ def loadHorns():
 ##  Takes care of printing messages to the console, writing messages to the log
 ##  file, and displaying them in debug mode.
 ##
+##  string: message to print, write, and log
+##  level: logging level ('info', 'debug', 'warning', 'error', or 'exception')
+##
 
 def logHandler(string, level):
 
@@ -1607,7 +1636,6 @@ def logHandler(string, level):
         elif 'debug' in level.lower(): logging.debug(string)
         elif 'warning' in level.lower(): logging.warning(string)
         elif 'error' in level.lower(): logging.error(string)
-        elif 'critical' in level.lower(): logging.critical(string)
         elif 'exception' in level.lower():
             logging.exception(string)
             return
@@ -1647,14 +1675,10 @@ menu = Tkinter.Menu(root, tearoff=0)
 loadImages()
 loadHorns()    
 
-# Load user data
+# Load user data or start the tutorial
 loadConfig()
-
-noConfig = True #DEV
-if noConfig:
-    startTutorial()   
-
-
+if noConfig: 
+    startTutorial()
    
 # Begin checking for scores
 checkScoresWrapper()
@@ -1662,8 +1686,5 @@ checkScoresWrapper()
 # Tkinter event loop
 try:
     root.mainloop()
-except Exception as details:
+except Exception:
     logHandler('MAINLOOP ERROR', 'exception')
-    logHandler(details, 'exception')
-    logging.exception('Error details to follow...')
-    raise

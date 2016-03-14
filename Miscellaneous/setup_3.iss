@@ -30,7 +30,7 @@ VersionInfoVersion={#MySetupVersion}
 ;VersionInfoTextVersion=
 DisableProgramGroupPage=yes
 OutputBaseFilename=NHL Goal Horn Scoreboard Setup
-SetupIconFile=C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard\Assets\icon.ico
+SetupIconFile=C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\Assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma
 SolidCompression=yes
@@ -46,15 +46,13 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 0,6.1
 
 [Files]
-Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard\favorites.cfg"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard\python27.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard\README.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard\Assets\*"; DestDir: "{app}\Assets\"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard\Python Resources\*"; DestDir: "{app}\Python Resources\"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard\Source\*"; DestDir: "{app}\Python Resources\"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard\Assets\Other\Trade Gothic Bold.ttf"; DestDir: "{fonts}"; FontInstall: "Trade Gothic Bold"; Flags: onlyifdoesntexist uninsneveruninstall
-Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\NHL Goal Horn Scoreboard\Assets\Other\Trade Gothic Light.ttf"; DestDir: "{fonts}"; FontInstall: "Trade Gothic Light"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\dist\NHL Goal Horn Scoreboard.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\dist\python27.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\dist\Python Resources\*"; DestDir: "{app}\Python Resources\"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\Assets\*"; DestDir: "{app}\Assets\"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\Assets\Fonts\Trade Gothic Bold.ttf"; DestDir: "{fonts}"; FontInstall: "Trade Gothic Bold"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\Assets\Fonts\Trade Gothic Light.ttf"; DestDir: "{fonts}"; FontInstall: "Trade Gothic Light"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\Assets\Fonts\Consolas.ttf"; DestDir: "{fonts}"; FontInstall: "Consolas"; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "C:\Users\chena\Desktop\NHL Goal Horn Scoreboard\Development\Installer\vcredist_x86.exe"; DestDir: {tmp}; Flags: deleteafterinstall
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
@@ -64,8 +62,7 @@ Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: 
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
 
 [Run]
-Filename: {tmp}\vcredist_x86.exe; Parameters: "/q:a /c:""VCREDI~3.EXE /q:a /c:""""msiexec /i vcredist.msi /qn"""" """; StatusMsg: Installing Microsoft Visual VC++ 2008 Redistributable;
+Filename: {tmp}\vcredist_x86.exe; Parameters: "/q:a /c:""VCREDI~3.EXE /q:a /c:""""msiexec /i vcredist.msi /qn"""" """; StatusMsg: Installing Microsoft Visual C++ 2008 Redistributable (this may take a moment);
 ;Filename: {tmp}\vcredist_x86.exe; Parameters: "/q /passive /Q:a /c:""msiexec /q /i vcredist.msi"" "; StatusMsg: Installing VC++ 2008 Redistributables...
 ;Filename: {src}\Redistributables\vcredist_x86.exe; Parameters: "/q:a /c:""VCREDI~3.EXE /q:a /c:""""msiexec /i vcredist.msi /qn"""" """;
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
