@@ -54,11 +54,15 @@
 ##
 ## TO DO
 ## -----
-## - Readme
+## N Readme
 ## N License
+## - Add NHL disclaimer
 ##
 ## X Clean up to-do list
 ## \ Assemble all-time to-do list
+##
+## - Sleep mode: don't check for new scores until close to game time?
+## X Dynamic refresh enabled incorrectly after timeout/URL open error
 ##
 
 
@@ -210,6 +214,7 @@ def URLhandler():
             fullText = urlopen(URL).read()
         except Exception:
             logHandler('URL OPEN ERROR', 'exception')
+            raise
         t1 = time.time()
         lag = t1-t0
         if lag > lagLimit:
