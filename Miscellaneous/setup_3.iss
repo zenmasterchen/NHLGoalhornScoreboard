@@ -40,6 +40,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
 ;WelcomeLabel2=This will install [name/ver] on your computer.%n%nIt is recommended that you close all other applications and disable any anti virus before continuing.
+SetupAppTitle=NHL Goal Horn Scoreboard Setup
+SetupWindowTitle=NHL Goal Horn Scoreboard Setup
+UninstallAppTitle=Uninstall NHL Goal Horn Scoreboard
+UninstallAppFullTitle=Uninstall NHL Goal Horn Scoreboard
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -62,7 +66,7 @@ Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: 
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
 
 [Run]
-Filename: {tmp}\vcredist_x86.exe; Parameters: "/q:a /c:""VCREDI~3.EXE /q:a /c:""""msiexec /i vcredist.msi /qn"""" """; StatusMsg: Installing Microsoft Visual C++ 2008 Redistributable (this may take a moment);
+Filename: {tmp}\vcredist_x86.exe; Parameters: "/q:a /c:""VCREDI~3.EXE /q:a /c:""""msiexec /i vcredist.msi /qn"""" """; StatusMsg: Installing Microsoft Visual C++ 2008 Redistributable...;
 ;Filename: {tmp}\vcredist_x86.exe; Parameters: "/q /passive /Q:a /c:""msiexec /q /i vcredist.msi"" "; StatusMsg: Installing VC++ 2008 Redistributables...
 ;Filename: {src}\Redistributables\vcredist_x86.exe; Parameters: "/q:a /c:""VCREDI~3.EXE /q:a /c:""""msiexec /i vcredist.msi /qn"""" """;
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

@@ -5,13 +5,16 @@ setup(
     windows = [
         {
             "script": "NHLghsb.py",
+            "dest_base": "NHL Goal Horn Scoreboard",
+            #"uac_info": "requireAdministrator",
             "icon_resources": [(1, "Assets/icon.ico")],           
             "name": "NHL Goal Horn Scoreboard",
             "version": "2.0.0",
-            "description": "Plays goal horns when NHL teams score.",
+            #"description": "Plays goal horns when NHL teams score.",
+            "description": "NHL Goal Horn Scoreboard",
             "author": "Austin Chen",
             "company_name": "austin and emily",
-            "copyright": "(c) Austin Chen 2016"
+            "copyright": "Copyright (C) 2016 Austin Chen"
         }
     ],
     zipfile = "Python Resources/NHLghsb.zip",
