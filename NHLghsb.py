@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 03/14/16
+##  Last Revision: 03/16/16
 ##
 ##  Copyright (C) 2016 Austin Chen
 ##
@@ -18,6 +18,7 @@
 ##  URLhandler()
 ##  checkScores()
 ##  checkScoresWrapper()
+##  checkScoresWrapperThreaded()
 ##  initializeScoreboard()
 ##  renderGame(gameNum) *
 ##  setTeams() *
@@ -63,6 +64,10 @@
 ##
 ## - Sleep mode: don't check for new scores until close to game time?
 ## X Dynamic refresh enabled incorrectly after timeout/URL open error
+## X Increase length of lamp animation
+## - Modify build script (date, ver)
+## - Remove NHL references
+##   - GHSB Logo
 ##
 
 
@@ -72,6 +77,7 @@ import sys                      #for the script name
 import winsound                 #for playing wav files
 import time                     #for delays
 import logging                  #for debugging
+import threading                #for checking scores
 from urllib import urlopen      #for reading in webpage content
 from shutil import copyfile     #for high-level file operations
 
@@ -157,7 +163,7 @@ cw = 70                             #score/time information width
 scoreOffset = 15                    #score text offset
 periodOffset = 41                   #period text offset
 fontSize = [26, 10]                 #font sizes
-lampLength = 10                     #lamp animation length, in seconds
+lampLength = 30                     #lamp animation length, in seconds
 ww = 0                              #window width
 wh = 0                              #window height
 sw = 128                            #splash screen width
@@ -229,8 +235,9 @@ def URLhandler():
 
     # Read in a test file for development
     else:
+        #time.sleep(3) #Artificial lag
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\dynamic.htm', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm')
         else:
@@ -440,7 +447,7 @@ def checkScores():
     
     # No longer a rookie
     firstRun = False
-    
+
     return
 
 
@@ -464,11 +471,11 @@ def checkScoresWrapper():
     try:
         checkScores()
         if dynamicRefresh:
-            root.after(refreshRate*2*1000, checkScoresWrapper)
+            root.after(refreshRate*2*1000, checkScoresWrapperThreaded)
         else:
-            root.after(refreshRate*1000, checkScoresWrapper)
+            root.after(refreshRate*1000, checkScoresWrapperThreaded)
     except Exception:
-        root.after(refreshRate*1000, checkScoresWrapper)
+        root.after(refreshRate*1000, checkScoresWrapperThreaded)
         logHandler('CHECKSCORES ERROR', 'exception')
         logging.debug('Error circumstances to follow...')
         logging.debug('\tfirstRun = %s, noConfig = %s, dynamicRefresh = %s, timeout = %s, numGames = %i', \
@@ -485,6 +492,21 @@ def checkScoresWrapper():
         logging.debug('\tfavorites = %s', ', '.join(map(str, favorites)))
         logging.debug('\tfullText (may not be up to date) = %s', fullText)
 
+    return
+
+
+#######################################
+##
+##  Check Scores Wrapper (Threaded)
+##
+##  Processes all calls to checkScoresWrapper() for threading purposes.
+##
+
+def checkScoresWrapperThreaded():
+
+    thread = threading.Thread(target=checkScoresWrapper)
+    thread.start()
+    
     return
 
 
@@ -1570,7 +1592,7 @@ if noConfig:
     startTutorial()
    
 # Begin checking for scores
-checkScoresWrapper()
+checkScoresWrapperThreaded()
 
 # Tkinter event loop
 try:
