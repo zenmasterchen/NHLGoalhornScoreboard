@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 03/16/16
+##  Last Revision: 03/17/16
 ##
 ##  Copyright (C) 2016 Austin Chen
 ##
@@ -37,6 +37,7 @@
 ##  toggleMute()
 ##  toggleDebug()
 ##  updateDebug()
+##
 ##  configureFavorites()
 ##  selectionClick(event) *
 ##  closeConfig() *
@@ -44,6 +45,7 @@
 ##  startTutorial()
 ##  navigateTutorial(direction)
 ##  tutorialClick(event)
+##  closeTutorial()
 ##
 ##  loadConfig()
 ##  saveConfig()
@@ -57,18 +59,21 @@
 ## -----
 ## N Readme
 ## N License
-## - Add NHL disclaimer
+## ! Add NHL disclaimer
 ##
 ## X Clean up to-do list
-## \ Assemble all-time to-do list
+## N Assemble all-time to-do list
 ##
-## - Sleep mode: don't check for new scores until close to game time?
+## N Sleep mode: don't check for new scores until close to game time?
 ## X Dynamic refresh enabled incorrectly after timeout/URL open error
 ## X Increase length of lamp animation
-## - Modify build script (date, ver)
-## - Remove NHL references
-##   - GHSB Logo
-##
+## X Modify build instructions
+## W Remove NHL references
+##   W GHSB Logo
+##   W Rename in Python
+##   W Rename in setup
+##   W Rename in installer
+## X Modify tutorial early exit logic to call configure favorites
 
 
 import Tkinter                  #for graphics
@@ -1243,6 +1248,7 @@ def startTutorial():
     popup.wm_title('Tutorial')
     popup.iconbitmap(progDir+'\\Assets\\icon.ico')
     popup.resizable(width=False, height=False)
+    popup.protocol('WM_DELETE_WINDOW', closeTutorial)
     tutorial = Tkinter.Canvas(popup, highlightthickness=0, background='white')
     tutorial.config(width=tw, height=th)
     tutorial.bind('<Button-1>', tutorialClick)
@@ -1355,8 +1361,7 @@ def navigateTutorial(direction):
         tutorial.itemconfig(tutorialShadow, state='normal')
         tutorial.itemconfig(tutorialLamp, state='hidden')
     else:
-        popup.destroy()
-        configureFavorites()
+        closeTutorial()
     
     return
 
@@ -1377,6 +1382,24 @@ def tutorialClick(event):
         navigateTutorial('next')
     elif event.x <= tp+to:
         navigateTutorial('back')
+
+    return
+
+
+#######################################
+##
+##  Close Tutorial Window
+##
+##  Closes the Tutorial popup window and proceeds to configure favorites.
+##  Triggered via Tkinter's protocol capability.
+##
+
+def closeTutorial():
+
+    global popup
+
+    popup.destroy()
+    configureFavorites()
 
     return
 
@@ -1434,29 +1457,29 @@ def saveConfig():
                 favoritesText += abbrev[teamID]+', '
             favoritesText = favoritesText[:-2]+']\n'
 
-        # Write to the configuration file
-        doc = open(appDir+'\\'+configFile, 'w+')
-        doc.write(favoritesText)
-        doc.write('\n'+'-'*52+'\n')
-        doc.write('\n\nINSTRUCTIONS\n')
-        doc.write('------------\n')
-        doc.write('Place your favorite team\'s three-letter abbreviation\n')
-        doc.write('inside the brackets above. Multiple teams should be\n')
-        doc.write('separated by commas.\n')
-        doc.write('\nExample: [COL, PIT] to track Colorado and Pittsburgh\n')
-        doc.write('\n\nTEAM ABBREVIATIONS\n')
-        doc.write('------------------\n')
-        teamID = 0
-        for row in range(configRows):
-            abbrevText = ''
-            for column in range(configColumns):
-                abbrevText += abbrev[teamID]+', '
-                teamID += 1
-            abbrevText = abbrevText[:-2]+'\n'
-            doc.write(abbrevText)
-        doc.close()
-                     
-        logHandler('Favorites saved', 'info')
+            # Write to the configuration file
+            doc = open(appDir+'\\'+configFile, 'w+')
+            doc.write(favoritesText)
+            doc.write('\n'+'-'*52+'\n')
+            doc.write('\n\nINSTRUCTIONS\n')
+            doc.write('------------\n')
+            doc.write('Place your favorite team\'s three-letter abbreviation\n')
+            doc.write('inside the brackets above. Multiple teams should be\n')
+            doc.write('separated by commas.\n')
+            doc.write('\nExample: [COL, PIT] to track Colorado and Pittsburgh\n')
+            doc.write('\n\nTEAM ABBREVIATIONS\n')
+            doc.write('------------------\n')
+            teamID = 0
+            for row in range(configRows):
+                abbrevText = ''
+                for column in range(configColumns):
+                    abbrevText += abbrev[teamID]+', '
+                    teamID += 1
+                abbrevText = abbrevText[:-2]+'\n'
+                doc.write(abbrevText)
+            doc.close()
+                         
+            logHandler('Favorites saved', 'info')
         
     except Exception:
         logHandler('CONFIGURATION WRITE ERROR', 'exception')
