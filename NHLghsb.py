@@ -8,9 +8,15 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 03/18/16
+##  Last Revision: 03/19/16
 ##
 ##  Copyright (C) 2016 Austin Chen
+##
+##
+##  Disclaimer: This program is provided for entertainment purposes only and is
+##  not affiliated with nor endorsed by the National Hockey League (NHL). "NHL"
+##  and the NHL logo are a registered trademarks of the National Hockey League.
+##  Team logos are registered trademarks of their respective franchises.
 ##
 ##
 ##  Function List
@@ -60,7 +66,7 @@
 ## -----
 ## N Readme
 ## N License
-## ! Add NHL disclaimer
+## X Add NHL disclaimer
 ##
 ## X Clean up to-do list
 ## N Assemble all-time to-do list
@@ -77,6 +83,8 @@
 ## X Modify tutorial early exit logic to call configure favorites
 ## X Include user-accessible version number
 ## X Develop console-like commands for debug mode
+## N Can't bind debug commands to messages (needs to apply to all, anyway)
+## N Open up window at upper-right screen corner (root.geometry is fickle)
 ##
 
 
@@ -97,7 +105,8 @@ from subprocess import Popen    #for file management
 ##
 
 # Administrative information
-ver = '2.3.18'                      #version
+ver = '2.3.19'                      #version
+test = False                        #development flag
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
 dynamicRefresh = False              #dynamic refresh flag
@@ -220,8 +229,7 @@ def URLhandler():
 
     global URL; global fullText; global firstRun; global timeout;
     global tPrev; global tTimeout;  global lagLimit; global dynamicRefresh;
-    
-    test = False
+    global test; global refreshRate;
 
     # Read in the raw NHL scores information from ESPN
     if not test:
@@ -246,8 +254,9 @@ def URLhandler():
     # Read in a test file for development
     else:
         #time.sleep(3) #Artificial lag
+        refreshRate = 10
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\dynamic.htm', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm')
         else:
@@ -1140,9 +1149,9 @@ def updateDebug():
 ##
 ##  a: about
 ##  c: contact
-##  f: favorites status
-##  o: open configuration folder
-##  t: start tutorial
+##  o: open folder
+##  s: status
+##  t: tutorial
 ##  v: volume check
 ##  ?: help
 ##
@@ -1162,13 +1171,6 @@ def debugCommands(event):
         elif event.char is 'c' or event.char is 'e':
             logHandler('Email: austin@austinandemily.com', 'debug')    
 
-        # Check the favorites configuration status
-        elif event.char is 'f':
-            if os.path.isfile(appDir+'\\'+configFile):
-                logHandler('Favorites configured', 'debug')
-            else:
-                logHandler('Favorites not configured', 'debug')
-
         # Open the configuration folder
         elif event.char is 'o':          
             logHandler('Opening folder...', 'debug')
@@ -1181,6 +1183,13 @@ def debugCommands(event):
             except:
                 pass
 
+        # Check the favorites configuration status
+        elif event.char is 's' or event.char is 'f':
+            if os.path.isfile(appDir+'\\'+configFile):
+                logHandler('Favorites configured', 'debug')
+            else:
+                logHandler('Favorites not configured', 'debug')
+                
         # Start the tutorial
         elif event.char is 't':
             startTutorial()
@@ -1195,8 +1204,8 @@ def debugCommands(event):
         elif event.char is '?' or event.char is '/':
             logHandler('a: about', 'debug')
             logHandler('c: contact', 'debug')
-            logHandler('f: favorites status', 'debug')
-            logHandler('t: start tutorial', 'debug')
+            logHandler('s: status', 'debug')
+            logHandler('t: tutorial', 'debug')
             logHandler('v: volume check', 'debug')
 
     return
@@ -1676,6 +1685,7 @@ logHandler('NHL Goal Horn Scoreboard (ver. '+ver+')', 'info')
 
 # Tkinter-related (root widget, canvases, etc.)
 root = Tkinter.Tk()
+root.configure(background='white')
 root.wm_title('NHL Goal Horn Scoreboard')
 root.iconbitmap(progDir+'\\Assets\\icon.ico')
 root.resizable(width=False, height=False)
