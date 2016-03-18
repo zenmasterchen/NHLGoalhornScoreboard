@@ -1,0 +1,61 @@
+Python
+------
+
+- test = False
+
+- Update the 'ver' variable
+
+- Update the "Last Revision" date
+
+- Update the to do list 
+
+
+
+py2exe
+------
+
+- Delete the old dist folder
+
+- Run py2exe from the command line: python setup.py py2exe
+
+- Delete the build folder
+
+
+
+Inno Setup
+----------
+
+- Open NHL Goal Horn Scoreboard Installer.iss
+
+- Update MyAppVersion and MySetupVersion
+
+- Compile the installer 
+
+
+
+GitHub
+------
+
+- Commit changes to GitHub
+
+- Copy files to Dropbox
+
+
+
+
+
+
+Future
+------
+
+- Readme
+
+- License
+
+- Source
+
+
+
+
+
+

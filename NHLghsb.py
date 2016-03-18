@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 03/17/16
+##  Last Revision: 03/18/16
 ##
 ##  Copyright (C) 2016 Austin Chen
 ##
@@ -37,6 +37,7 @@
 ##  toggleMute()
 ##  toggleDebug()
 ##  updateDebug()
+##  debugCommands()
 ##
 ##  configureFavorites()
 ##  selectionClick(event) *
@@ -74,17 +75,20 @@
 ##   W Rename in setup
 ##   W Rename in installer
 ## X Modify tutorial early exit logic to call configure favorites
+## X Include user-accessible version number
+## X Develop console-like commands for debug mode
+##
 
 
 import Tkinter                  #for graphics
 import os                       #for file management
-import sys                      #for the script name
+import sys                      #for file management
 import winsound                 #for playing wav files
 import time                     #for delays
 import logging                  #for debugging
 import threading                #for checking scores
 from urllib import urlopen      #for reading in webpage content
-from shutil import copyfile     #for high-level file operations
+from subprocess import Popen    #for file management
 
 
 ################################################################################
@@ -93,6 +97,7 @@ from shutil import copyfile     #for high-level file operations
 ##
 
 # Administrative information
+ver = '2.3.18'                      #version
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
 dynamicRefresh = False              #dynamic refresh flag
@@ -1128,6 +1133,77 @@ def updateDebug():
 
 #######################################
 ##
+##  Debug Commands
+##
+##  Enables interactivity in debug mode. Triggered via Tkinter's bind
+##  capability.
+##
+##  a: about
+##  c: contact
+##  f: favorites status
+##  o: open configuration folder
+##  t: start tutorial
+##  v: volume check
+##  ?: help
+##
+
+def debugCommands(event):
+
+    global debug; global ver; global appDir; global configFile; global logFile;
+    global horns;
+
+    if debug:
+
+        # Display about/version information
+        if event.char is 'a':
+            logHandler('NHL Goal Horn Scoreboard (ver. '+ver+')', 'info')
+
+        # Display contact/email information
+        elif event.char is 'c' or event.char is 'e':
+            logHandler('Email: austin@austinandemily.com', 'debug')    
+
+        # Check the favorites configuration status
+        elif event.char is 'f':
+            if os.path.isfile(appDir+'\\'+configFile):
+                logHandler('Favorites configured', 'debug')
+            else:
+                logHandler('Favorites not configured', 'debug')
+
+        # Open the configuration folder
+        elif event.char is 'o':          
+            logHandler('Opening folder...', 'debug')
+            if os.path.isfile(appDir+'\\'+configFile):
+                openFile = r'explorer /select, "'+appDir+'\\'+configFile+'"'
+            else:
+                openFile = r'explorer /select, "'+appDir+'\\'+logFile+'"'
+            try:
+                Popen(openFile)
+            except:
+                pass
+
+        # Start the tutorial
+        elif event.char is 't':
+            startTutorial()
+
+        # Play a test goal horn to check for volume (use DET, NJD, NYR, or TOR)
+        elif event.char is 'v':
+            logHandler('Playing test goal horn', 'info') 
+            winsound.PlaySound(horns[TOR], \
+                                    winsound.SND_FILENAME | winsound.SND_ASYNC)
+
+        # Display the list of debug commands
+        elif event.char is '?' or event.char is '/':
+            logHandler('a: about', 'debug')
+            logHandler('c: contact', 'debug')
+            logHandler('f: favorites status', 'debug')
+            logHandler('t: start tutorial', 'debug')
+            logHandler('v: volume check', 'debug')
+
+    return
+
+
+#######################################
+##
 ##  Configure Favorites
 ##
 ##  Presents a full list of teams for the user to select their favorites.
@@ -1593,7 +1669,11 @@ def logHandler(string, level):
 
 
 ####################################  MAIN  ####################################
-    
+
+
+# Note the version
+logHandler('NHL Goal Horn Scoreboard (ver. '+ver+')', 'info')
+
 # Tkinter-related (root widget, canvases, etc.)
 root = Tkinter.Tk()
 root.wm_title('NHL Goal Horn Scoreboard')
@@ -1601,6 +1681,7 @@ root.iconbitmap(progDir+'\\Assets\\icon.ico')
 root.resizable(width=False, height=False)
 root.bind('<Button-1>', leftClick)
 root.bind('<Button-3>', rightClick)
+root.bind('<Key>', debugCommands)
 scoreboard = Tkinter.Canvas(root, highlightthickness=0, background='white')
 messages = Tkinter.Canvas(root, highlightthickness=0, background='#333333')
 menu = Tkinter.Menu(root, tearoff=0)
