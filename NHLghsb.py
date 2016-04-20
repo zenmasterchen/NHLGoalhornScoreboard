@@ -60,6 +60,7 @@
 ##  loadHorns()
 ##
 ##  logHandler(string, level)
+##  debugDump()
 ##
 ##
 ## TO DO
@@ -86,11 +87,13 @@
 ## N Can't bind debug commands to messages (needs to apply to all, anyway)
 ## N Open up window at upper-right screen corner (root.geometry is fickle)
 ##
-## N “IN 19TH OT” bug (Can’t recreate
-## ! Debug mode “dump” action (if debug mode enabled)
+## N "IN 19TH OT" bug (can't recreate)
+## X Add debug mode "dump" action (if debug mode enabled)
 ## X Include disclaimer in installer welcome message
 ## X Change "END OF 3RD" to "Final" if game not tied
-## - Mark/unmark all in configure favorites
+## ! Mark/unmark all in configure favorites (change to track all?)
+##
+## W Extended use failure (URL or checkScores? log time last completed)
 ## 
 
 
@@ -112,7 +115,7 @@ from subprocess import Popen    #for file management
 
 # Administrative information
 ver = '2.4.20'                      #version
-test = True                       #development flag
+test = False                        #development flag
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
 dynamicRefresh = False              #dynamic refresh flag
@@ -120,8 +123,9 @@ timeout = False                     #delayed update flag
 refreshRate = 15                    #how often to update, in seconds
 lagLimit = 5                        #allowable update delay, in seconds
 checkSumPrev = 0                    #scoreboard switchover detection
-tPrev = 0                           #time of the last update, in seconds
+tURL = 0                            #time of the last update, in seconds
 tTimeout = 30                       #timeout threshold, in minutes
+tCheck = 0                          #time of the last score check, in seconds
 tZone = 0                           #time zone, in hours offset from Eastern
 numTeams = 30                       #number of teams in the league
 mute = False                        #mute on/of
@@ -234,7 +238,7 @@ fullText = ''
 def URLhandler():
 
     global URL; global fullText; global firstRun; global timeout;
-    global tPrev; global tTimeout;  global lagLimit; global dynamicRefresh;
+    global tURL; global tTimeout;  global lagLimit; global dynamicRefresh;
     global test; global refreshRate;
 
     # Read in the raw NHL scores information from ESPN
@@ -255,7 +259,7 @@ def URLhandler():
                 if dynamicRefresh:
                     dynamicRefresh = False
                     logHandler('Dynamic refresh disabled', 'debug')
-        tPrev = t1
+        tURL = t1
 
     # Read in a test file for development
     else:
@@ -270,7 +274,7 @@ def URLhandler():
             raise
         fullText = doc.readline()
         doc.close()
-        tPrev = time.time()
+        tURL = time.time()
     
     return fullText
 
@@ -285,7 +289,7 @@ def URLhandler():
 
 def checkScores():
 
-    global URLthread; global fullText; global tPrev; global tTimeout;
+    global fullText; global tURL; global tTimeout; global tCheck;
     global firstRun; global timeout; global numGames; global checkSumPrev;
     global timePeriod; global gameStatus; 
     global teams; global teamIDs; global scores; 
@@ -294,7 +298,7 @@ def checkScores():
 
 
     # Suppress goal horns and lamps if it's been too long since the last run
-    if not firstRun and time.time()-tPrev > tTimeout*60:
+    if not firstRun and time.time()-tURL > tTimeout*60:
         logHandler('TIMEOUT', 'warning')
         timeout = True
         if dynamicRefresh:
@@ -476,7 +480,8 @@ def checkScores():
     
     # No longer a rookie
     firstRun = False
-
+    tCheck = time.time()
+    
     return
 
 
@@ -490,12 +495,7 @@ def checkScores():
 
 def checkScoresWrapper():
 
-    global root; global refreshRate; global fullText;
-    global firstRun; global noConfig; global dynamicRefresh; global timeout; global numGames;
-    global mute; global debug; global multiColumn; global ww; global wh;
-    global teams; global teamIDs; global scores;
-    global goalFlag; global tracking;
-    global timePeriod; global gameStatus; global favorites;
+    global root; global refreshRate;
 
     try:
         checkScores()
@@ -506,21 +506,8 @@ def checkScoresWrapper():
     except Exception:
         root.after(refreshRate*1000, checkScoresWrapperThreaded)
         logHandler('CHECKSCORES ERROR', 'exception')
-        logging.debug('Error circumstances to follow...')
-        logging.debug('\tfirstRun = %s, noConfig = %s, dynamicRefresh = %s, timeout = %s, numGames = %i', \
-                      firstRun, noConfig, dynamicRefresh, timeout, numGames)
-        logging.debug('\tmute = %s, debug = %s, multiColumn = %s, ww = %i, wh = %i', \
-                      mute, debug, multiColumn, ww, wh)
-        logging.debug('\tteams = %s', ', '.join(teams))
-        logging.debug('\tteamIDs = %s', ', '.join(map(str, teamIDs)))
-        logging.debug('\tscores = %s', ', '.join(map(str, scores)))
-        logging.debug('\tgoalFlags = %s', ', '.join(map(str, goalFlags)))
-        logging.debug('\ttracking = %s', ', '.join(map(str, tracking)))
-        logging.debug('\ttimePeriod = %s', ', '.join(timePeriod))
-        logging.debug('\tgameStatus = %s', ', '.join(map(str, gameStatus)))
-        logging.debug('\tfavorites = %s', ', '.join(map(str, favorites)))
-        logging.debug('\tfullText (may not be up to date) = %s', fullText)
-
+        debugDump()
+        
     return
 
 
@@ -951,7 +938,7 @@ def leftClick(event):
 def rightClick(event):
 
     global root; global scoreboard; global menu;
-    global mute; global teamIDs; global favorites;
+    global mute; global debug; global teamIDs; global favorites;
 
     # Overwrite the previous context menu
     try:
@@ -1159,6 +1146,7 @@ def updateDebug():
 ##
 ##  a: about
 ##  c: contact
+##  d: debug dump
 ##  o: open folder
 ##  s: status
 ##  t: tutorial
@@ -1179,7 +1167,11 @@ def debugCommands(event):
 
         # Display contact/email information
         elif event.char is 'c' or event.char is 'e':
-            logHandler('Email: austin@austinandemily.com', 'debug')    
+            logHandler('austin@austinandemily.com', 'debug')    
+
+        # Dump debug information
+        if event.char is 'd':
+            debugDump()
 
         # Open the configuration folder
         elif event.char is 'o':          
@@ -1214,7 +1206,7 @@ def debugCommands(event):
         elif event.char is '?' or event.char is '/':
             logHandler('a: about', 'debug')
             logHandler('c: contact', 'debug')
-            logHandler('s: status', 'debug')
+            logHandler('d: debug dump', 'debug')
             logHandler('t: tutorial', 'debug')
             logHandler('v: volume check', 'debug')
 
@@ -1684,6 +1676,45 @@ def logHandler(string, level):
         if debug:
             updateDebug()
 
+    return
+
+
+#######################################
+##
+##  Debug Dump
+##
+##  Dumps debugging information to the log file.
+##
+
+def debugDump():
+
+    global fullText; global tURL; global tCheck
+    global firstRun; global noConfig; global dynamicRefresh; global timeout; global numGames;
+    global mute; global debug; global multiColumn; global ww; global wh;
+    global teams; global teamIDs; global scores;
+    global goalFlag; global tracking;
+    global timePeriod; global gameStatus; global favorites;
+
+    logging.debug('Debug dump to follow...')
+    logging.debug('\tfirstRun = %s, noConfig = %s', \
+                  firstRun, noConfig)
+    logging.debug('\tmute = %s, debug = %s, dynamicRefresh = %s', \
+                  mute, debug, dynamicRefresh)
+    logging.debug('\ttimeout = %s, time()-tURL = %i, time()-tCheck = %i', \
+                  timeout, time.time()-tURL, time.time()-tCheck)
+    logging.debug('\tnumGames = %i, multiColumn = %s, ww = %i, wh = %i', \
+                  numGames, multiColumn, ww, wh)
+    logging.debug('\tteams = %s', ', '.join(teams))
+    logging.debug('\tteamIDs = %s', ', '.join(map(str, teamIDs)))
+    logging.debug('\tscores = %s', ', '.join(map(str, scores)))
+    logging.debug('\tgoalFlags = %s', ', '.join(map(str, goalFlags)))
+    logging.debug('\ttracking = %s', ', '.join(map(str, tracking)))
+    logging.debug('\ttimePeriod = %s', ', '.join(timePeriod))
+    logging.debug('\tgameStatus = %s', ', '.join(map(str, gameStatus)))
+    logging.debug('\tfavorites = %s', ', '.join(map(str, favorites)))
+    logging.debug('\tfullText (may not be up to date) = %s', fullText)
+    logHandler('Debug dump logged', 'debug')
+    
     return
 
 
