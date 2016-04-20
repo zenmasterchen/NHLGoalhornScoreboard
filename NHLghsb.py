@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 03/19/16
+##  Last Revision: 04/20/16
 ##
 ##  Copyright (C) 2016 Austin Chen
 ##
@@ -86,6 +86,12 @@
 ## N Can't bind debug commands to messages (needs to apply to all, anyway)
 ## N Open up window at upper-right screen corner (root.geometry is fickle)
 ##
+## N “IN 19TH OT” bug (Can’t recreate
+## ! Debug mode “dump” action (if debug mode enabled)
+## X Include disclaimer in installer welcome message
+## X Change "END OF 3RD" to "Final" if game not tied
+## - Mark/unmark all in configure favorites
+## 
 
 
 import Tkinter                  #for graphics
@@ -105,8 +111,8 @@ from subprocess import Popen    #for file management
 ##
 
 # Administrative information
-ver = '2.3.19'                      #version
-test = False                        #development flag
+ver = '2.4.20'                      #version
+test = True                       #development flag
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
 dynamicRefresh = False              #dynamic refresh flag
@@ -256,7 +262,7 @@ def URLhandler():
         #time.sleep(3) #Artificial lag
         refreshRate = 10
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\3rd.htm', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm')
         else:
@@ -413,7 +419,11 @@ def checkScores():
             elif '2ND' in game:
                 gameStatus[index] = 2
             elif '3RD' in game:
-                gameStatus[index] = 3
+                if 'END' in game and scores[index*2] is not scores[index*2+1]:
+                    timePeriod[index] = 'FINAL'
+                    gameStatus[index] = 9
+                else:
+                    gameStatus[index] = 3
             if '2ND OT' in game:
                 timePeriod[index] = timePeriod[index].replace('2ND OT','SO')
                 timePeriod[index] = timePeriod[index].replace('- SO','(SO)')
