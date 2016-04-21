@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 04/20/16
+##  Last Revision: 04/21/16
 ##
 ##  Copyright (C) 2016 Austin Chen
 ##
@@ -91,7 +91,8 @@
 ## X Add debug mode "dump" action (if debug mode enabled)
 ## X Include disclaimer in installer welcome message
 ## X Change "END OF 3RD" to "Final" if game not tied
-## ! Mark/unmark all in configure favorites (change to track all?)
+## X Mark/unmark all in configure favorites (change to track all)
+## X Successive tutorial runs skip straight to configure favorites
 ##
 ## W Extended use failure (URL or checkScores? log time last completed)
 ## 
@@ -114,7 +115,7 @@ from subprocess import Popen    #for file management
 ##
 
 # Administrative information
-ver = '2.4.20'                      #version
+ver = '2.4.21'                      #version
 test = False                        #development flag
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
@@ -266,9 +267,9 @@ def URLhandler():
         #time.sleep(3) #Artificial lag
         refreshRate = 10
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\3rd.htm', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm')
+            doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm', 'r+')
         else:
             logHandler('UNKNOWN DEVELOPMENT MACHINE', 'error')
             raise
@@ -934,11 +935,11 @@ def leftClick(event):
 ##  Determines the behavior of a right mouse button click.
 ##  Triggered via Tkinter's bind capability.
 ##
-
+ 
 def rightClick(event):
 
     global root; global scoreboard; global menu;
-    global mute; global debug; global teamIDs; global favorites;
+    global mute; global debug; global teamIDs; global favorites; global tracking;
 
     # Overwrite the previous context menu
     try:
@@ -957,9 +958,13 @@ def rightClick(event):
                              command=lambda: toggleFavorite(teamIDs[teamNum]))
         else:
             menu.add_command(label='Remove as favorite', \
-                             command=lambda: toggleFavorite(teamIDs[teamNum]))            
-        menu.add_separator()  
+                             command=lambda: toggleFavorite(teamIDs[teamNum]))
 
+    if tracking.count(True) > numGames:    
+        menu.add_command(label='Untrack all', command=untrackAll)
+    else:
+        menu.add_command(label='Track all', command=trackAll)
+    menu.add_separator()  
     menu.add_checkbutton(label='Mute', command=toggleMute)
     menu.add_checkbutton(label='Debug mode', command=toggleDebug)
     menu.add_command(label='Configure favorites...', command=configureFavorites)
@@ -1050,6 +1055,56 @@ def toggleFavorite(teamID):
             saveConfig()
     except:
         saveConfig()
+
+    return
+
+
+#######################################
+##
+##  Track All
+##
+##  Starts tracking all teams for goal horns. Gets called by rightClick(event).
+##
+
+def trackAll():
+
+    global tracking; global teamIDs; 
+    
+    # Loop through the teams
+    for index, tracked in enumerate(tracking):
+    
+        # Start tracking untracked teams
+        if not tracked:
+            tracking[index] = True
+            logHandler('Started tracking '+abbrev[teamIDs[index]], 'info')
+
+    # Update the drop shadows for user feedback
+    setShadows()
+
+    return
+
+
+#######################################
+##
+##  Untrack All
+##
+##  Stops tracking all teams for goal horns. Gets called by rightClick(event).
+##
+
+def untrackAll():
+    
+    global tracking; global teamIDs;
+    
+    # Loop through the teams
+    for index, tracked in enumerate(tracking):
+    
+        # Stop tracking tracked teams
+        if tracked:
+            tracking[index] = False
+            logHandler('Stopped tracking '+abbrev[teamIDs[index]], 'info')
+
+    # Update the drop shadows for user feedback
+    setShadows()
 
     return
 
@@ -1366,6 +1421,7 @@ def startTutorial():
 
     # Start tutorial
     tutorial.pack()
+    tutorialIndex = -1
     navigateTutorial('next')
     logHandler('Tutorial started', 'info')
     

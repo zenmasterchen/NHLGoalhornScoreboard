@@ -1,7 +1,7 @@
 Python
 ------
 
-- test = False
+- Set the 'test' variable to False
 
 - Update the 'ver' variable
 
@@ -20,6 +20,8 @@ py2exe
 
 - Delete the build folder
 
+- Copy over the Assets folder and test the executable (optional)
+
 
 
 Inno Setup
@@ -29,7 +31,7 @@ Inno Setup
 
 - Update MyAppVersion and MySetupVersion
 
-- Compile the installer 
+- Compile the installer (Project -> Compile)
 
 
 
@@ -38,7 +40,7 @@ GitHub
 
 - Commit changes to GitHub
 
-- Copy files to Dropbox
+- Copy the source and installer files to Dropbox
 
 
 
