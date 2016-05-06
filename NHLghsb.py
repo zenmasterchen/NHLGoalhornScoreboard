@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 04/21/16
+##  Last Revision: 05/06/16
 ##
 ##  Copyright (C) 2016 Austin Chen
 ##
@@ -94,7 +94,14 @@
 ## X Mark/unmark all in configure favorites (change to track all)
 ## X Successive tutorial runs skip straight to configure favorites
 ##
-## W Extended use failure (URL or checkScores? log time last completed)
+## W Extended use failure (need more logs)
+## X OT parentheses consistency
+## 
+## X 2nd OT actually means 2nd OT in the playoffs
+## - Period change notifications
+##  - Right click score/time area to toggle
+##  ! Use ref’s whistle to indicate
+##
 ## 
 
 
@@ -115,7 +122,7 @@ from subprocess import Popen    #for file management
 ##
 
 # Administrative information
-ver = '2.4.21'                      #version
+ver = '2.5.06'                      #version
 test = False                        #development flag
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
@@ -128,6 +135,7 @@ tURL = 0                            #time of the last update, in seconds
 tTimeout = 30                       #timeout threshold, in minutes
 tCheck = 0                          #time of the last score check, in seconds
 tZone = 0                           #time zone, in hours offset from Eastern
+playoffs = False                    #regular season or playoffs (for OT changes)
 numTeams = 30                       #number of teams in the league
 mute = False                        #mute on/of
 debug = False                       #debug mode on/off
@@ -267,7 +275,7 @@ def URLhandler():
         #time.sleep(3) #Artificial lag
         refreshRate = 10
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\scores2m.html', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\OTSO.htm', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm', 'r+')
         else:
@@ -295,7 +303,7 @@ def checkScores():
     global timePeriod; global gameStatus; 
     global teams; global teamIDs; global scores; 
     global goalFlags; global tracking; global abbrev; global horns;
-    global dynamicRefresh;
+    global dynamicRefresh; global playoffs;
 
 
     # Suppress goal horns and lamps if it's been too long since the last run
@@ -329,14 +337,15 @@ def checkScores():
         firstRun = True
     numGames = len(gamesArray)
 
-    # Initialize arrays to store game information
+    # Initialize arrays to store game information and determine the time
     if firstRun:
         teams = ['']*numGames*2
         teamIDs = ['-1']*numGames*2
         scores = ['0']*numGames*2
         goalFlags = [False]*numGames*2
         timePeriod = ['']*numGames
-        gameStatus = [0]*numGames      
+        gameStatus = [0]*numGames
+        detectTime()
 
     # Avoid playing multiple goal horns at once
     hornPlayed = False
@@ -429,16 +438,18 @@ def checkScores():
                     gameStatus[index] = 9
                 else:
                     gameStatus[index] = 3
-            if '2ND OT' in game:
-                timePeriod[index] = timePeriod[index].replace('2ND OT','SO')
-                timePeriod[index] = timePeriod[index].replace('- SO','(SO)')
-                gameStatus[index] = 5
-            elif 'OT' in game:
-                timePeriod[index] = timePeriod[index].replace('1ST OT','OT')
-                timePeriod[index] = timePeriod[index].replace('- OT','(OT)')
+            if 'OT' in game:
                 gameStatus[index] = 4
+            if not playoffs:
+                if '2ND OT' in game:
+                    timePeriod[index] = timePeriod[index].replace('2ND OT','SO')
+                    gameStatus[index] = 5
+                elif 'OT' in game:
+                    timePeriod[index] = timePeriod[index].replace('1ST OT','OT')
             if 'FINAL' in game: 
                 gameStatus[index] = 9
+                if 'OT' in game or 'SO' in game:
+                    timePeriod[index] = timePeriod[index].replace('- ','(')+')'
             
         # Parse the shit out of games not yet started(0)
         else:
@@ -467,11 +478,8 @@ def checkScores():
 
     # Apply appropriate changes to the scoreboard display        
     if firstRun:
-        detectTimeZone()
         initializeScoreboard()
         setTeams()
-        #if noConfig:            
-        #    configureFavorites()
         if debug:
             toggleDebug()
             toggleDebug()
@@ -711,18 +719,17 @@ def setTeams():
 
 #######################################
 ##
-##  Detect Time Zone
+##  Detect Time
 ##
 ##  Determines the local time zone for the purpose of shifting game start times.
-##  Only needs to be called once.
+##  Also guesses if the playoffs are happening. Only needs to be called once.
 ##
 
-def detectTimeZone():
+def detectTime():
 
-    global tZone;
+    global tZone; global playoffs;
 
     zones = ' '.join(time.tzname)
-
     if 'Eastern' in zones:
         tZone = 0
     elif 'Central' in zones:
@@ -733,6 +740,10 @@ def detectTimeZone():
         tZone = 3
     else:
         tZone = -1
+
+    month = int(time.strftime('%m'))
+    if 4 <= month and month <= 7:
+        playoffs = True
 
     return
 
@@ -750,7 +761,7 @@ def updateScoreboard():
     global scoreboard; global numGames; global gameStatus; global timePeriod
     global periodText; global scoreText; global timeText; global scores;
     global tZone;
-
+    
     # Loop through the games
     for gameNum in range(numGames):
         
