@@ -1,0 +1,25 @@
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Python27\lib\lib-tk\Tkinter.py", line 1536, in __call__
+    return self.func(*args)
+  File "C:\Python27\lib\lib-tk\Tkinter.py", line 587, in callit
+    func(*args)
+  File "C:\Users\Austin and Emily\Desktop\NHL Goal Horn Scoreboard\NHLghsb.py", line 127, in checkScores
+    fullText = urllib.urlopen(URL).read()
+  File "C:\Python27\lib\urllib.py", line 87, in urlopen
+    return opener.open(url)
+  File "C:\Python27\lib\urllib.py", line 213, in open
+    return getattr(self, name)(url)
+  File "C:\Python27\lib\urllib.py", line 350, in open_http
+    h.endheaders(data)
+  File "C:\Python27\lib\httplib.py", line 1049, in endheaders
+    self._send_output(message_body)
+  File "C:\Python27\lib\httplib.py", line 893, in _send_output
+    self.send(msg)
+  File "C:\Python27\lib\httplib.py", line 855, in send
+    self.connect()
+  File "C:\Python27\lib\httplib.py", line 832, in connect
+    self.timeout, self.source_address)
+  File "C:\Python27\lib\socket.py", line 557, in create_connection
+    for res in getaddrinfo(host, port, 0, SOCK_STREAM):
+IOError: [Errno socket error] [Errno 11001] getaddrinfo failed

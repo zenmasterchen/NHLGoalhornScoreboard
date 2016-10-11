@@ -1,0 +1,36 @@
+06:40:02 PM - Favorites loaded
+06:40:02 PM - Dynamic refresh enabled
+06:40:02 PM - Scoreboard initialized
+06:40:02 PM - Teams set
+06:40:02 PM - Scoreboard updated at 06:40:02 PM
+06:40:33 PM - Scoreboard updated at 06:40:33 PM
+06:41:03 PM - Scoreboard updated at 06:41:03 PM
+08:28:52 PM - TIMEOUT
+08:28:52 PM - Dynamic refresh disabled
+08:28:52 PM - URL OPEN ERROR
+Traceback (most recent call last):
+  File "NHLghsb.py", line 323, in URLhandler
+  File "urllib.pyo", line 87, in urlopen
+  File "urllib.pyo", line 208, in open
+  File "urllib.pyo", line 345, in open_http
+  File "httplib.pyo", line 991, in endheaders
+  File "httplib.pyo", line 844, in _send_output
+  File "httplib.pyo", line 806, in send
+  File "httplib.pyo", line 787, in connect
+  File "socket.pyo", line 553, in create_connection
+IOError: [Errno socket error] [Errno 11001] getaddrinfo failed
+08:28:52 PM - Dynamic refresh enabled
+08:28:53 PM - Scoreboard updated at 08:28:53 PM
+08:29:19 PM - Debug mode on
+08:29:23 PM - Dynamic refresh disabled
+08:29:23 PM - Scoreboard updated at 08:29:23 PM
+08:29:39 PM - Scoreboard updated at 08:29:39 PM
+08:29:39 PM - Debug mode off
+08:29:54 PM - Scoreboard updated at 08:29:54 PM
+08:30:10 PM - Scoreboard updated at 08:30:10 PM
+08:30:25 PM - Scoreboard updated at 08:30:25 PM
+08:30:41 PM - Scoreboard updated at 08:30:41 PM
+08:30:56 PM - Scoreboard updated at 08:30:56 PM
+08:31:12 PM - Scoreboard updated at 08:31:12 PM
+08:31:27 PM - Scoreboard updated at 08:31:27 PM
+08:31:44 PM - Scoreboard updated at 08:31:44 PM

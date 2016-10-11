@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 05/06/16
+##  Last Revision: 10/11/16
 ##
 ##  Copyright (C) 2016 Austin Chen
 ##
@@ -96,11 +96,16 @@
 ##
 ## W Extended use failure (need more logs)
 ## X OT parentheses consistency
-## 
+##
+## ! Choose new icon
+##
 ## X 2nd OT actually means 2nd OT in the playoffs
 ## - Period change notifications
 ##  - Right click score/time area to toggle
 ##  ! Use ref’s whistle to indicate
+##
+## X "DELAYED" bug (10/6 preseason)
+## X New team logos: FLA, PIT, TOR
 ##
 ## 
 
@@ -122,7 +127,7 @@ from subprocess import Popen    #for file management
 ##
 
 # Administrative information
-ver = '2.5.06'                      #version
+ver = '3.10.11'                     #version
 test = False                        #development flag
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
@@ -275,7 +280,7 @@ def URLhandler():
         #time.sleep(3) #Artificial lag
         refreshRate = 10
         if 'CHEN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\Python27\\Scripts\\Test Scores\\OTSO.htm', 'r+')
+            doc = open('C:\\Python27\\Scripts\\Test Scores\\nodelay_.htm', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm', 'r+')
         else:
@@ -784,7 +789,7 @@ def updateScoreboard():
                 gameTime = str(hour)+gameTime[hourMarker:]
 
             # Remove 'ET'
-            if tZone >= 0:
+            if tZone >= 0 and 'ET' in gameTime:
                 gameTime = gameTime[0:len(gameTime)-3]
                 
             scoreboard.itemconfig(periodText[gameNum], text='')
