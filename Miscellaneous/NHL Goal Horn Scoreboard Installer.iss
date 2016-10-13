@@ -2,8 +2,8 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "NHL Goal Horn Scoreboard"
-#define MyAppVersion "2.4.21"
-#define MySetupVersion "1.4.21"
+#define MyAppVersion "3.10.11"
+#define MySetupVersion "2.10.11"
 #define MyAppPublisher "Austin Chen"
 #define MyAppURL "austinandemily.com"
 #define MyAppExeName "NHL Goal Horn Scoreboard.exe"
