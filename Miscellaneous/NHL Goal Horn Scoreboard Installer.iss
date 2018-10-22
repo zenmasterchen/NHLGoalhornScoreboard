@@ -2,8 +2,8 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "NHL Goal Horn Scoreboard"
-#define MyAppVersion "3.10.11"
-#define MySetupVersion "2.10.11"
+#define MyAppVersion "4.10.22"
+#define MySetupVersion "3.10.22"
 #define MyAppPublisher "Austin Chen"
 #define MyAppURL "austinandemily.com"
 #define MyAppExeName "NHL Goal Horn Scoreboard.exe"
@@ -22,7 +22,7 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 VersionInfoCompany={#MyAppPublisher}
-VersionInfoCopyright=Copyright (C) 2016 Austin Chen
+VersionInfoCopyright=Copyright (C) 2018 Austin Chen
 ;VersionInfoDescription
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}

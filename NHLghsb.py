@@ -8,9 +8,9 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 10/11/16
+##  Last Revision: 10/20/18
 ##
-##  Copyright (C) 2016 Austin Chen
+##  Copyright (C) 2018 Austin Chen
 ##
 ##
 ##  Disclaimer: This program is provided for entertainment purposes only and is
@@ -59,7 +59,7 @@
 ##  loadImages()
 ##  loadHorns()
 ##
-##  logHandler(string, level)
+##  logHandler(message, level)
 ##  debugDump()
 ##
 ##
@@ -101,11 +101,22 @@
 ##
 ## X 2nd OT actually means 2nd OT in the playoffs
 ## - Period change notifications
-##  - Right click score/time area to toggle
-##  ! Use ref’s whistle to indicate
+##   - Right click score/time area to toggle
+##   ! Use ref’s whistle to indicate
 ##
 ## X "DELAYED" bug (10/6 preseason)
 ## X New team logos: FLA, PIT, TOR
+##
+## X Added detail to goal scored log messages
+## X Changed log handler argument name
+##
+## X Add support for the Vegas Golden Knights
+##   X Update team IDs
+##   X Test VGK score tracking
+##   X Redo row/column favorites layout(4x8)
+##   N Check if tutorial changes needed
+##   X Update config file legend (manual)
+##
 ##
 ## 
 
@@ -127,7 +138,7 @@ from subprocess import Popen    #for file management
 ##
 
 # Administrative information
-ver = '3.10.11'                     #version
+ver = '4.10.20'                     #version
 test = False                        #development flag
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
@@ -141,23 +152,21 @@ tTimeout = 30                       #timeout threshold, in minutes
 tCheck = 0                          #time of the last score check, in seconds
 tZone = 0                           #time zone, in hours offset from Eastern
 playoffs = False                    #regular season or playoffs (for OT changes)
-numTeams = 30                       #number of teams in the league
+numTeams = 31                       #number of teams in the league
 mute = False                        #mute on/of
 debug = False                       #debug mode on/off
 debugLength = 5                     #number of debug messages to display
 debugList = ['']*debugLength        #list of debug messages to display
 
 # Team IDs (DO NOT ALTER)
-ANA = 0; ARI = 1; BOS = 2; BUF = 3; CGY = 4; CAR = 5;
-CHI = 6; COL = 7; CBJ = 8; DAL = 9; DET = 10; EDM = 11;
-FLA = 12; LAK = 13; MIN = 14; MTL = 15; NSH = 16; NJD = 17;
-NYI = 18; NYR = 19; OTT = 20; PHI = 21; PIT = 22; SJS = 23;
-STL = 24; TBL = 25; TOR = 26; VAN = 27; WSH = 28; WPG = 29; NHL = 30;
-abbrev = ['ANA', 'ARI', 'BOS', 'BUF', 'CGY', 'CAR', \
-          'CHI', 'COL', 'CBJ', 'DAL', 'DET', 'EDM', \
-          'FLA', 'LAK', 'MIN', 'MTL', 'NSH', 'NJD', \
-          'NYI', 'NYR', 'OTT', 'PHI', 'PIT', 'SJS', \
-          'STL', 'TBL', 'TOR', 'VAN', 'WSH', 'WPG', '?']
+ANA = 0; ARI = 1; BOS = 2; BUF = 3; CGY = 4; CAR = 5; CHI = 6; COL = 7;
+CBJ = 8; DAL = 9; DET = 10; EDM = 11; FLA = 12; LAK = 13; MIN = 14; MTL = 15;
+NSH = 16; NJD = 17; NYI = 18; NYR = 19; OTT = 20; PHI = 21; PIT = 22; SJS = 23;
+STL = 24; TBL = 25; TOR = 26; VAN = 27; VGK = 28; WSH = 29; WPG = 30; NHL = 31;
+abbrev = ['ANA', 'ARI', 'BOS', 'BUF', 'CGY', 'CAR', 'CHI', 'COL', \
+          'CBJ', 'DAL', 'DET', 'EDM', 'FLA', 'LAK', 'MIN', 'MTL', \
+          'NSH', 'NJD', 'NYI', 'NYR', 'OTT', 'PHI', 'PIT', 'SJS', \
+          'STL', 'TBL', 'TOR', 'VAN', 'VGK', 'WSH', 'WPG', '?']
 
 # Game information
 teams = []                          #city names, per team
@@ -219,8 +228,8 @@ to = 24                             #tutorial offset
 instructionOffset = 3               #tutorial line 0 offset
 logoOffset = 1                      #tutorial logo offset
 multiColumn = False                 #multiple columns for small screens
-configRows = 5                      #number of rows for configuring favorites
-configColumns = 6                   #number of columns for configuring favorites
+configRows = 4                      #number of rows for configuring favorites
+configColumns = 8                   #number of columns for configuring favorites
 large = 0                           #size index for team logos
 small = 1                           #size index for configuring favorites
 bw = 2                              #size index for configuring favorites
@@ -282,7 +291,7 @@ def URLhandler():
         if 'CHEN' in os.environ['COMPUTERNAME']:
             doc = open('C:\\Python27\\Scripts\\Test Scores\\nodelay_.htm', 'r+')
         elif 'AUSTIN' in os.environ['COMPUTERNAME']:
-            doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\multi.htm', 'r+')
+            doc = open('C:\\NHL Scoreboard\\Development\\Test Scores\\scores2v.html', 'r+')
         else:
             logHandler('UNKNOWN DEVELOPMENT MACHINE', 'error')
             raise
@@ -400,7 +409,9 @@ def checkScores():
             game = game[game.find(' ')+1:]
             newScore = int(game[:game.find(' ')])
             if newScore > scores[index*2] and not firstRun and not timeout:
-                logHandler('Goal scored by '+abbrev[teamIDs[index*2]], 'info')
+                logHandler('Goal scored by '+abbrev[teamIDs[index*2]]+ \
+                           ' '+str(newScore)+'-'+str(scores[index*2+1])+ \
+                           ' (around '+timePeriod[index].lower()+')', 'info')
                 goalFlags[index*2] = True
                 if tracking[index*2] and not hornPlayed:
                     if mute:
@@ -417,7 +428,9 @@ def checkScores():
             game = game[game.find(' ')+1:]
             newScore = int(game[:game.find(' ')])
             if newScore > scores[index*2+1] and not firstRun and not timeout:
-                logHandler('Goal scored by '+abbrev[teamIDs[index*2+1]], 'info')
+                logHandler('Goal scored by '+abbrev[teamIDs[index*2+1]]+ \
+                           ' '+str(newScore)+'-'+str(scores[index*2])+ \
+                           ' (around '+timePeriod[index].lower()+')', 'info')
                 goalFlags[index*2+1] = True
                 if tracking[index*2+1] and not hornPlayed:
                     if mute:
@@ -702,6 +715,7 @@ def setTeams():
         elif team == 'TampaBay': teamIDs[index] = TBL
         elif team == 'Toronto': teamIDs[index] = TOR
         elif team == 'Vancouver': teamIDs[index] = VAN
+        elif team == 'Vegas': teamIDs[index] = VGK
         elif team == 'Washington': teamIDs[index] = WSH
         elif team == 'Winnipeg': teamIDs[index] = WPG
         else: teamIDs[index] = NHL
@@ -1297,6 +1311,7 @@ def configureFavorites():
     global configRows; global configColumns; global lh; global lw;
     global configLogos; global configShadows;
     global logoImages; global shadowImage;
+    global numTeams;
 
     # Avoid creating duplicate configuration windows
     try:
@@ -1318,20 +1333,23 @@ def configureFavorites():
     selection.bind('<Button-1>', selectionClick)
 
     # Draw the team logos according to favorite status
-    teamID = 0
-    for row in range(configRows):
-        for column in range(configColumns):
-            x = sp+(lw[small]+sp)*column+lw[small]/2
-            y = sp+(lh[small]+sp)*row+lh[small]/2
-            configShadows[teamID] = selection.create_image(x, y, anchor='center', \
-                                        image=shadowImage[small], state='hidden')
-            configLogos[teamID] = selection.create_image(x, y, anchor='center')
-            if teamID in favorites:
-                selection.itemconfig(configLogos[teamID], image=logoImages[small][teamID])
-                selection.itemconfig(configShadows[teamID], state='normal')
-            else:
-                selection.itemconfig(configLogos[teamID], image=logoImages[bw][teamID])
-            teamID += 1
+    row = 0
+    column = 0
+    for teamID in range(numTeams):
+        x = sp+(lw[small]+sp)*column+lw[small]/2
+        y = sp+(lh[small]+sp)*row+lh[small]/2
+        configShadows[teamID] = selection.create_image(x, y, anchor='center', \
+                                    image=shadowImage[small], state='hidden')
+        configLogos[teamID] = selection.create_image(x, y, anchor='center')
+        if teamID in favorites:
+            selection.itemconfig(configLogos[teamID], image=logoImages[small][teamID])
+            selection.itemconfig(configShadows[teamID], state='normal')
+        else:
+            selection.itemconfig(configLogos[teamID], image=logoImages[bw][teamID])
+        column += 1
+        if column == configColumns:
+            column = 0
+            row += 1
     selection.pack()
     
     return
@@ -1348,6 +1366,7 @@ def configureFavorites():
 def selectionClick(event):
 
     global lh; global lw; global configRows; global configColumns;
+    global numTeams;
 
     # Check the y coordinate
     for row in range(configRows):
@@ -1358,8 +1377,9 @@ def selectionClick(event):
                 if sp+(lw[small]+sp)*column <= event.x and event.x <= sp+(lw[small]+sp)*column+lw[small]:
                       
                     # Toggle the favorite status of the clicked-on team
-                    teamID = row*(configRows+1)+column
-                    toggleFavorite(teamID)
+                    teamID = row*(configColumns)+column                
+                    if teamID < numTeams:
+                        toggleFavorite(teamID)
                     return
 
     return
@@ -1425,7 +1445,7 @@ def startTutorial():
     tutorialLamp = tutorial.create_image(x, y, anchor='center', \
                                             image=lampFrames[large][0], state='hidden')
     tutorialLogo = tutorial.create_image(x, y, anchor='center', \
-                                            image=logoImages[large][PIT])
+                                            image=logoImages[large][COL])
     # Navigation
     x = to
     y = th/2
@@ -1628,16 +1648,10 @@ def saveConfig():
             doc.write('\nExample: [COL, PIT] to track Colorado and Pittsburgh\n')
             doc.write('\n\nTEAM ABBREVIATIONS\n')
             doc.write('------------------\n')
-            teamID = 0
-            for row in range(configRows):
-                abbrevText = ''
-                for column in range(configColumns):
-                    abbrevText += abbrev[teamID]+', '
-                    teamID += 1
-                abbrevText = abbrevText[:-2]+'\n'
-                doc.write(abbrevText)
-            doc.close()
-                         
+            doc.write('ANA, ARI, BOS, BUF, CGY, CAR, CHI, COL\n')
+            doc.write('CBJ, DAL, DET, EDM, FLA, LAK, MIN, MTL\n')
+            doc.write('NSH, NJD, NYI, NYR, OTT, PHI, PIT, SJS\n')
+            doc.write('STL, TBL, TOR, VAN, VGK, WSH, WPG\n')
             logHandler('Favorites saved', 'info')
         
     except Exception:
@@ -1712,31 +1726,31 @@ def loadHorns():
 ##  Takes care of printing messages to the console, writing messages to the log
 ##  file, and displaying them in debug mode.
 ##
-##  string: message to print, write, and log
+##  message: string to print, write, and log
 ##  level: logging level ('info', 'debug', 'warning', 'error', or 'exception')
 ##
 
-def logHandler(string, level):
+def logHandler(message, level):
 
     global debugList; global debug;
 
     try:
         # Print to console
-        print string
+        print message
 
         # Log to file
-        if 'info' in level.lower(): logging.info(string)
-        elif 'debug' in level.lower(): logging.debug(string)
-        elif 'warning' in level.lower(): logging.warning(string)
-        elif 'error' in level.lower(): logging.error(string)
+        if 'info' in level.lower(): logging.info(message)
+        elif 'debug' in level.lower(): logging.debug(message)
+        elif 'warning' in level.lower(): logging.warning(message)
+        elif 'error' in level.lower(): logging.error(message)
         elif 'exception' in level.lower():
-            logging.exception(string)
+            logging.exception(message)
             return
-        else: logging.info(string)
+        else: logging.info(message)
 
         # Display in debug
         debugList.pop(0)
-        debugList.append(string)
+        debugList.append(message)
         if debug:
             updateDebug()
         
