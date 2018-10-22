@@ -8,7 +8,7 @@
 ##
 ##  Author: Austin Chen
 ##  Email: austin@austinandemily.com
-##  Last Revision: 10/20/18
+##  Last Revision: 10/22/18
 ##
 ##  Copyright (C) 2018 Austin Chen
 ##
@@ -117,6 +117,8 @@
 ##   N Check if tutorial changes needed
 ##   X Update config file legend (manual)
 ##
+## X Saving zero favorites bug
+##
 ##
 ## 
 
@@ -138,7 +140,7 @@ from subprocess import Popen    #for file management
 ##
 
 # Administrative information
-ver = '4.10.20'                     #version
+ver = '4.10.22'                     #version
 test = False                        #development flag
 firstRun = True                     #first run flag
 noConfig = False                    #no configuration file flag
@@ -1635,25 +1637,27 @@ def saveConfig():
             for teamID in favorites:
                 favoritesText += abbrev[teamID]+', '
             favoritesText = favoritesText[:-2]+']\n'
+        else:
+            favoritesText = '[]\n'
 
-            # Write to the configuration file
-            doc = open(appDir+'\\'+configFile, 'w+')
-            doc.write(favoritesText)
-            doc.write('\n'+'-'*52+'\n')
-            doc.write('\n\nINSTRUCTIONS\n')
-            doc.write('------------\n')
-            doc.write('Place your favorite team\'s three-letter abbreviation\n')
-            doc.write('inside the brackets above. Multiple teams should be\n')
-            doc.write('separated by commas.\n')
-            doc.write('\nExample: [COL, PIT] to track Colorado and Pittsburgh\n')
-            doc.write('\n\nTEAM ABBREVIATIONS\n')
-            doc.write('------------------\n')
-            doc.write('ANA, ARI, BOS, BUF, CGY, CAR, CHI, COL\n')
-            doc.write('CBJ, DAL, DET, EDM, FLA, LAK, MIN, MTL\n')
-            doc.write('NSH, NJD, NYI, NYR, OTT, PHI, PIT, SJS\n')
-            doc.write('STL, TBL, TOR, VAN, VGK, WSH, WPG\n')
-            logHandler('Favorites saved', 'info')
-        
+        # Write to the configuration file
+        doc = open(appDir+'\\'+configFile, 'w+')
+        doc.write(favoritesText)
+        doc.write('\n'+'-'*52+'\n')
+        doc.write('\n\nINSTRUCTIONS\n')
+        doc.write('------------\n')
+        doc.write('Place your favorite team\'s three-letter abbreviation\n')
+        doc.write('inside the brackets above. Multiple teams should be\n')
+        doc.write('separated by commas.\n')
+        doc.write('\nExample: [COL, PIT] to track Colorado and Pittsburgh\n')
+        doc.write('\n\nTEAM ABBREVIATIONS\n')
+        doc.write('------------------\n')
+        doc.write('ANA, ARI, BOS, BUF, CGY, CAR, CHI, COL\n')
+        doc.write('CBJ, DAL, DET, EDM, FLA, LAK, MIN, MTL\n')
+        doc.write('NSH, NJD, NYI, NYR, OTT, PHI, PIT, SJS\n')
+        doc.write('STL, TBL, TOR, VAN, VGK, WSH, WPG\n')
+        logHandler('Favorites saved', 'info')
+    
     except Exception:
         logHandler('CONFIGURATION WRITE ERROR', 'exception')
         
